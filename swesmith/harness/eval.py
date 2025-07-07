@@ -5,7 +5,7 @@ Usage: python -m swesmith.harness.eval \
     --dataset_path <path to dataset> \
     --predictions_path <gold / path to predictions> \
     --run_id <unique identifier for this run> \
-    --max_workers <number of workers to use>
+    --workers <number of workers to use>
 """
 
 import argparse
@@ -33,6 +33,7 @@ def run_evaluation(
     pred: dict,
     instance: dict,
     run_id: str,
+    f2p_only: bool = False,
     is_gold: bool = False,
 ) -> None:
     """
@@ -47,6 +48,7 @@ def run_evaluation(
         rp.timeout,
         patch=pred[KEY_PREDICTION],
         commit=instance_id,  # NOTE: could use `base_commit`
+        f2p_only=f2p_only,
         is_gold=is_gold,
     )
 
@@ -69,7 +71,7 @@ def run_evaluation(
     # Get report from test output
     logger.info(f"Grading answer for {instance_id}...")
     eval_folder = RUN_EVALUATION_LOG_DIR / run_id
-    report = get_eval_report(pred, instance, test_log_path)
+    report = get_eval_report(pred, instance, test_log_path, f2p_only=f2p_only)
     report[KEY_MODEL] = pred[KEY_MODEL]
 
     # Write report to report.json
@@ -80,9 +82,10 @@ def run_evaluation(
 
 def main(
     run_id: str,
-    max_workers: int,
+    workers: int,
     predictions_path: str = "gold",
     dataset_path: str = HF_DATASET,
+    f2p_only: bool = False,
     instance_ids: list | None = None,
     report_only: bool = False,
     redo_existing: bool = False,
@@ -162,6 +165,7 @@ def main(
                 prediction,
                 instance,
                 run_id,
+                f2p_only,
                 is_gold,
             )
         )
@@ -170,7 +174,7 @@ def main(
     if report_only:
         print("Regenerating reports only (skipping eval run)")
     else:
-        run_threadpool(run_evaluation, payloads, max_workers)
+        run_threadpool(run_evaluation, payloads, workers)
         print("All instances run.")
 
     # Get number of task instances resolved
@@ -215,7 +219,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--run_id", type=str, help="Unique identifier for this run")
     parser.add_argument(
-        "-w", "--max_workers", type=int, help="Number of workers to use", default=4
+        "-w", "--workers", type=int, help="Number of workers to use", default=4
     )
     parser.add_argument(
         "--redo_existing",
@@ -224,6 +228,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-i", "--instance_ids", type=str, help="Instance IDs to evaluate", nargs="+"
+    )
+    parser.add_argument(
+        "-f",
+        "--f2p_only",
+        action="store_true",
+        help="(Speed up) Run evaluation using only files with f2p tests",
     )
     parser.add_argument(
         "--report_only", action="store_true", help="Regenerate reports only"

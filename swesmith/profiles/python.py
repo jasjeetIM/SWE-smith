@@ -30,7 +30,10 @@ class PythonProfile(RepoProfile):
         f"conda activate {ENV_NAME}; "
         "pytest --disable-warnings --color=no --tb=no --verbose"
     )
-    test_exts: list[str] = field(default_factory=lambda: [".py"])
+    exts: list[str] = field(default_factory=lambda: [".py"])
+
+    def _get_f2p_test_files(self, instance: dict) -> list[str]:
+        return sorted(list(set([x.split("::", 1)[0] for x in instance[FAIL_TO_PASS]])))
 
     def build_image(self):
         BASE_IMAGE_KEY = "jyangballin/swesmith.x86_64"
@@ -1124,11 +1127,7 @@ class MypyE93f06ce(PythonProfile):
 
     def get_test_cmd(self, instance: str) -> tuple[str, list]:
         pattern = r"\[case ([^\]]+)\]"
-        if FAIL_TO_PASS in instance:
-            test_keys = " or ".join(
-                [x.rsplit("::", 1)[-1] for x in instance[FAIL_TO_PASS]]
-            )
-        elif INSTANCE_REF in instance and "test_patch" in instance[INSTANCE_REF]:
+        if INSTANCE_REF in instance and "test_patch" in instance[INSTANCE_REF]:
             test_keys = " or ".join(
                 re.findall(pattern, instance[INSTANCE_REF]["test_patch"])
             )

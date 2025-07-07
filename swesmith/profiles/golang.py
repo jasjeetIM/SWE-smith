@@ -1,6 +1,6 @@
 import re
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from swebench.harness.constants import TestStatus
 from swesmith.profiles.base import RepoProfile, global_registry
 
@@ -14,7 +14,8 @@ class GoProfile(RepoProfile):
     repository profiles.
     """
 
-    test_cmd: str = "go test -v -count=1 ./..."
+    exts: list[str] = field(default_factory=lambda: [".go"])
+    test_cmd: str = "go test -v ./..."
 
     @property
     def dockerfile(self):
@@ -22,6 +23,7 @@ class GoProfile(RepoProfile):
 RUN git clone https://github.com/{self.mirror_name} /testbed
 WORKDIR /testbed
 RUN go mod tidy
+RUN go test -v -count=1 ./... || true
 """
 
     def log_parser(self, log: str) -> dict[str, str]:
@@ -57,13 +59,6 @@ class Fzf976001e4(GoProfile):
     owner: str = "junegunn"
     repo: str = "fzf"
     commit: str = "976001e47459973b5e72565f3047cc9d9e20241d"
-
-
-@dataclass
-class Beego8fd113aa(GoProfile):
-    owner: str = "beego"
-    repo: str = "beego"
-    commit: str = "8fd113aa0937a11c45eb41cbf147f33df7e9fb6f"
 
 
 @dataclass
@@ -344,8 +339,6 @@ class Roaring(GoProfile):
     owner: str = "RoaringBitmap"
     repo: str = "roaring"
     commit: str = "09c46a0a47d21ebbe4bedb01bbcf0ba96f22a46d"
-    timeout: int = 90
-    timeout_ref: int = 90
 
 
 @dataclass

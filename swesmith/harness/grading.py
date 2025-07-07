@@ -3,7 +3,6 @@ from swebench.harness.constants import (
     APPLY_PATCH_FAIL,
     FAIL_TO_FAIL,
     FAIL_TO_PASS,
-    KEY_INSTANCE_ID,
     KEY_PREDICTION,
     PASS_TO_FAIL,
     PASS_TO_PASS,
@@ -68,20 +67,7 @@ def get_valid_report(
 
     for test_case in postgold_sm:
         if test_case not in pregold_sm:
-            if rp.min_testing:
-                # If min_testing is enabled, we ignore the test case
-                # if it is not present in the pre-gold (bug) log
-                continue
-            elif postgold_sm[test_case] == TestStatus.PASSED.value:
-                # If the test case is not present in the pre-gold
-                # log and is passing in the post-gold log, it is
-                # considered a fail-to-pass case
-                report[FAIL_TO_PASS].append(test_case)
-            elif postgold_sm[test_case] == TestStatus.FAILED.value:
-                # If the test case is not present in the pre-gold
-                # log and is failing in the post-gold log, it is
-                # considered a pass-to-fail case
-                report[PASS_TO_FAIL].append(test_case)
+            continue
         elif (
             pregold_sm[test_case] == TestStatus.PASSED.value
             and postgold_sm[test_case] == TestStatus.PASSED.value
@@ -103,17 +89,21 @@ def get_valid_report(
         ):
             report[PASS_TO_FAIL].append(test_case)
 
-    for test_case in pregold_sm:
-        if (
-            pregold_sm[test_case] == TestStatus.FAILED.value
-            and test_case not in postgold_sm
-        ):
-            # If the test case was failing in the pre-gold log and
-            # is not present in the post-gold log, it is considered
-            # a fail-to-pass case
-            report[FAIL_TO_PASS].append(test_case)
-
     return report
+
+
+def test_passed(case: str, sm: dict[str, str]) -> bool:
+    return case in sm and sm[case] in [
+        TestStatus.PASSED.value,
+        TestStatus.XFAIL.value,
+    ]
+
+
+def test_failed(case: str, sm: dict[str, str]) -> bool:
+    return case not in sm or sm[case] in [
+        TestStatus.FAILED.value,
+        TestStatus.ERROR.value,
+    ]
 
 
 def get_eval_tests_report(
@@ -143,45 +133,23 @@ def get_eval_tests_report(
     - Fail-Fail (F2F) + P: Success (Extra Credit)
     - Pass-Fail (P2F) + P: Not considered
     """
-
-    def test_passed(case: str, sm: dict[str, str]) -> bool:
-        # NOTE: This metric is slightly different than SWE-bench's.
-        # The reason originates in wanting to run the test suite efficently (under 90 seconds)
-        # Because of this design, sometimes, we don't run the full test suite, but a subset of it.
-        # Therefore, if a test case does not appear in the eval_sm, we just assume that it was a pass.
-        # Given the uniformity of the testing procedure for SWE-bench repos, this is a safe assumption.
-        return case not in sm or sm[case] in [
-            TestStatus.PASSED.value,
-            TestStatus.XFAIL.value,
-        ]
-
-    def test_failed(case: str, sm: dict[str, str]) -> bool:
-        # NOTE: This metric is slightly different than SWE-bench's.
-        # In SWE-bench, if a test case does not appear, then it is considered a fail.
-        # Here, we look for explicit failures
-        return case in sm and sm[case] in [
-            TestStatus.FAILED.value,
-            TestStatus.ERROR.value,
-        ]
-
-    def check_pass_and_fail(test_case, eval_status_map, success, failed):
-        if test_passed(test_case, eval_status_map):
-            # Assume silent success for now (test case not in eval_sm)
-            success.append(test_case)
-        elif test_failed(test_case, eval_status_map):
-            failed.append(test_case)
-
     # Calculate resolution metrics
     f2p_success = []
     f2p_failure = []
     for test_case in gold_results[FAIL_TO_PASS]:
-        check_pass_and_fail(test_case, eval_status_map, f2p_success, f2p_failure)
+        if test_passed(test_case, eval_status_map):
+            f2p_success.append(test_case)
+        elif test_failed(test_case, eval_status_map):
+            f2p_failure.append(test_case)
 
     # Calculate maintenance metrics
     p2p_success = []
     p2p_failure = []
     for test_case in gold_results[PASS_TO_PASS]:
-        check_pass_and_fail(test_case, eval_status_map, p2p_success, p2p_failure)
+        if test_passed(test_case, eval_status_map):
+            p2p_success.append(test_case)
+        elif test_failed(test_case, eval_status_map):
+            p2p_failure.append(test_case)
 
     results = {
         FAIL_TO_PASS: {
@@ -201,11 +169,16 @@ def get_eval_tests_report(
     if calculate_to_fail:
         # Calculate "extra credit" metrics
         for test_case in gold_results[FAIL_TO_FAIL]:
-            check_pass_and_fail(test_case, eval_status_map, f2f_success, f2f_failure)
-
+            if test_passed(test_case, eval_status_map):
+                f2f_success.append(test_case)
+            elif test_failed(test_case, eval_status_map):
+                f2f_failure.append(test_case)
         # Calculate not considered metrics
         for test_case in gold_results[PASS_TO_FAIL]:
-            check_pass_and_fail(test_case, eval_status_map, p2f_success, p2f_failure)
+            if test_passed(test_case, eval_status_map):
+                p2f_success.append(test_case)
+            elif test_failed(test_case, eval_status_map):
+                p2f_failure.append(test_case)
 
     results.update(
         {
@@ -226,20 +199,16 @@ def get_eval_report(
     prediction: dict,
     inst: dict,
     test_log_path: str,
+    f2p_only: bool = False,
 ):
-    report_map = {}
-
-    instance_id = prediction[KEY_INSTANCE_ID]
     report_map = {
-        "patch_is_None": False,
         "patch_exists": False,
-        "patch_successfully_applied": False,
         "resolved": False,
     }
+    rp = global_registry.get_from_inst(inst)
 
     # Check if model patch exists
     if prediction[KEY_PREDICTION] is None:
-        report_map["patch_is_None"] = True
         return report_map
     report_map["patch_exists"] = True
 
@@ -247,25 +216,23 @@ def get_eval_report(
     test_output, found = read_test_output(test_log_path)
     if not found:
         return report_map
-    test_status_map = global_registry.get(inst["repo"]).log_parser(test_output)
+    test_status_map = rp.log_parser(test_output)
 
-    # Identify relevant test files
-    _, test_files = global_registry.get(inst["repo"]).get_test_cmd(inst)
-    filter_irrelevant_tests = (
-        lambda tests: [x for x in tests if any([x.startswith(y) for y in test_files])]
-        if len(test_files) > 0
-        else tests
-    )
-
-    # Construct gold test reference object
-    eval_ref = {
-        KEY_INSTANCE_ID: instance_id,
-        FAIL_TO_PASS: filter_irrelevant_tests(inst[FAIL_TO_PASS]),
-        PASS_TO_PASS: filter_irrelevant_tests(inst[PASS_TO_PASS]),
-    }
+    if f2p_only:
+        # Only examine f2p tests
+        test_files = rp._get_f2p_test_files(inst)
+        filter_irrelevant_tests = (
+            lambda tests: [
+                x for x in tests if any([x.startswith(y) for y in test_files])
+            ]
+            if len(test_files) > 0
+            else tests
+        )
+        inst[FAIL_TO_PASS] = filter_irrelevant_tests
+        inst[PASS_TO_PASS] = filter_irrelevant_tests
 
     # Get evaluation test report
-    report = get_eval_tests_report(test_status_map, eval_ref)
+    report = get_eval_tests_report(test_status_map, inst)
     if get_resolution_status(report) == ResolvedStatus.FULL.value:
         report_map["resolved"] = True
     report_map["tests_status"] = report

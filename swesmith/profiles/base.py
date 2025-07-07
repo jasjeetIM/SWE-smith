@@ -18,7 +18,7 @@ from ghapi.all import GhApi
 from multiprocessing import Lock
 from pathlib import Path
 from swesmith.bug_gen.adapters import get_entities_from_file, SUPPORTED_EXTS
-from swebench.harness.constants import FAIL_TO_PASS, KEY_INSTANCE_ID
+from swebench.harness.constants import KEY_INSTANCE_ID
 from swesmith.constants import (
     KEY_PATCH,
     LOG_DIR_ENV,
@@ -61,14 +61,12 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     org_gh: str = ORG_NAME_GH
     arch: str = "x86_64" if platform.machine() not in {"aarch64", "arm64"} else "arm64"
     pltf: str = "linux/x86_64" if arch == "x86_64" else "linux/arm64/v8"
+    exts: list[str] = field(default_factory=lambda: SUPPORTED_EXTS)
 
     # Install + Test specifications
     test_cmd: str = ""
-    test_exts: list[str] = field(
-        default_factory=lambda: [f".{ext}" for ext in SUPPORTED_EXTS]
-    )
-    timeout: int = 60  # timeout (sec) for running test suite for a single instance
-    timeout_ref: int = 600  # timeout for running entire test suite
+    timeout: int = 90  # timeout (sec) for running test suite for a single instance
+    timeout_ref: int = 900  # timeout for running entire test suite
 
     # `min_testing`: If set, then subset of tests (not all) are run for post-bug validation
     # Affects get_test_cmd, get_valid_report
@@ -107,11 +105,11 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
 
     def _mirror_exists(self):
         """Check if mirror repository exists under organization"""
-        return self.repo_name in [
-            x["name"]
-            for page in range(1, 3)  # TODO: Need to update over time
-            for x in api.repos.list_for_org(self.org_gh, per_page=100, page=page)
-        ]
+        try:
+            api.repos.get(owner=self.org_gh, repo=self.repo_name)
+            return True
+        except:
+            return False
 
     def build_image(self):
         """Build a Docker image (execution environment) for this repository profile."""
@@ -237,8 +235,8 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                             or file.rsplit(".", 1)[0].endswith("test")
                         )
                         and (
-                            len(self.test_exts) == 0
-                            or any([file.endswith(ext) for ext in self.test_exts])
+                            len(self.exts) == 0
+                            or any([file.endswith(ext) for ext in self.exts])
                         )
                     )
                 ]
@@ -248,20 +246,22 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
 
         return self._test_paths_cache[cache_key]
 
-    def get_test_cmd(self, instance: dict) -> tuple[str, list[Path]]:
+    def _get_f2p_test_files(self, instance: dict):
+        """Given an instance, return files corresponding to F2P tests"""
+        raise NotImplementedError("F2P test file identification not implemented")
+
+    def get_test_cmd(
+        self, instance: dict, f2p_only: bool = False
+    ) -> tuple[str, list[Path]]:
         assert instance[KEY_INSTANCE_ID].rsplit(".", 1)[0] == self.repo_name, (
             f"WARNING: {instance[KEY_INSTANCE_ID]} not from {self.repo_name}"
         )
         test_command = self.test_cmd
 
-        if FAIL_TO_PASS in instance:
-            # NOTE: Using F2P key as indicator that this is eval instance, not validation
-            if "pytest" in test_command:
-                f2p_files = sorted(
-                    list(set([x.split("::", 1)[0] for x in instance[FAIL_TO_PASS]]))
-                )
-                test_command += f" {' '.join(f2p_files)}"
-                return test_command, f2p_files
+        if f2p_only:
+            f2p_files = self._get_f2p_test_files(instance)
+            test_command += f" {' '.join(f2p_files)}"
+            return test_command, f2p_files
 
         if not self.min_testing or KEY_PATCH not in instance:
             # If min testing is not enabled or there's no patch
@@ -377,8 +377,8 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                 except:
                     continue
 
-                file_ext = Path(file_path).suffix[1:]
-                if file_ext not in get_entities_from_file:
+                file_ext = Path(file_path).suffix
+                if file_ext not in self.exts:
                     continue
                 get_entities_from_file[file_ext](entities, file_path, max_entities)
         if cloned:
