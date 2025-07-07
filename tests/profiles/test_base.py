@@ -623,3 +623,40 @@ def my_function(x, y):
     # Check that at least one is a class and one is a function
     assert any(getattr(e, "is_class", False) for e in entities)
     assert any(getattr(e, "is_function", False) for e in entities)
+
+
+def test_is_test_path_cases(tmp_path):
+    """Test the _is_test_path method for various file and directory patterns and extensions."""
+    # Use MockRepoProfile with a dummy directory
+    mock_rp = MockRepoProfile(str(tmp_path))
+    # Set exts to default SUPPORTED_EXTS for broad coverage
+    mock_rp.exts = [".py", ".js", ".go", ".java", ".rb", ".php", ".rs", ".c"]
+
+    # Should match by file name
+    assert mock_rp._is_test_path("src", "test_foo.py")
+    assert mock_rp._is_test_path("src", "foo_test.py")
+    assert mock_rp._is_test_path("src", "TestBar.java")  # case-insensitive start
+    assert mock_rp._is_test_path("src", "bar_test.go")
+    assert mock_rp._is_test_path("src", "baz_test.rb")
+    assert mock_rp._is_test_path("src", "testBaz.rs")
+
+    # Should match by directory
+    assert mock_rp._is_test_path("tests", "foo.py")
+    assert mock_rp._is_test_path("specs", "bar.js")
+    assert mock_rp._is_test_path("src/tests", "baz.go")
+    assert mock_rp._is_test_path("src/specs", "baz.java")
+    assert mock_rp._is_test_path("src/test", "baz.rb")
+
+    # Should not match non-test files
+    assert not mock_rp._is_test_path("src", "foo.py")
+    assert not mock_rp._is_test_path("src", "bar.txt")
+    assert not mock_rp._is_test_path("docs", "readme.md")
+    assert not mock_rp._is_test_path("src", "main.c")
+
+    # Should not match files with unsupported extension if exts > 1
+    mock_rp.exts = [".py", ".js"]
+    assert not mock_rp._is_test_path("src", "test_foo.go")
+    assert not mock_rp._is_test_path("tests", "foo.rb")
+    # Should match if extension is supported
+    assert mock_rp._is_test_path("src", "test_foo.py")
+    assert mock_rp._is_test_path("tests", "foo.js")

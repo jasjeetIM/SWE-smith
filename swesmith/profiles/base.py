@@ -211,6 +211,17 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
             stderr=subprocess.DEVNULL,
         )
 
+    def _is_test_path(self, root: str, file: str) -> bool:
+        """Check whether the file path corresponds to a testing related file"""
+        if len(self.exts) > 1 and not any([file.endswith(ext) for ext in self.exts]):
+            return False
+        if file.lower().startswith("test") or file.rsplit(".", 1)[0].endswith("test"):
+            return True
+        dirs = root.split("/")
+        if any([x in dirs for x in ["tests", "test", "specs"]]):
+            return True
+        return False
+
     def _get_cached_test_paths(self) -> list[Path]:
         """Clone the repo, get all testing file paths relative to the repo directory, then clean up."""
         # Use repo_name as cache key since it's unique per repository profile
@@ -223,22 +234,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                     Path(os.path.relpath(os.path.join(root, file), self.repo_name))
                     for root, _, files in os.walk(Path(self.repo_name).resolve())
                     for file in files
-                    if (
-                        (
-                            any(
-                                [
-                                    x in root.split("/")
-                                    for x in ["tests", "test", "specs"]
-                                ]
-                            )
-                            or file.lower().startswith("test")
-                            or file.rsplit(".", 1)[0].endswith("test")
-                        )
-                        and (
-                            len(self.exts) == 0
-                            or any([file.endswith(ext) for ext in self.exts])
-                        )
-                    )
+                    if self._is_test_path(root, file)
                 ]
                 if cloned:
                     shutil.rmtree(dir_path)
@@ -246,9 +242,9 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
 
         return self._test_paths_cache[cache_key]
 
-    def _get_f2p_test_files(self, instance: dict):
+    def _get_f2p_test_files(self, instance: dict) -> list[str]:
         """Given an instance, return files corresponding to F2P tests"""
-        raise NotImplementedError("F2P test file identification not implemented")
+        return []
 
     def get_test_cmd(
         self, instance: dict, f2p_only: bool = False
@@ -353,17 +349,8 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
         dir_path, cloned = self.clone()
         entities = []
         for root, _, files in os.walk(dir_path):
-            if exclude_tests and any(
-                [x in root for x in ["/spec", "/tests", "/test", "/testing"]]
-            ):
-                continue
             for file in files:
-                if exclude_tests and (
-                    file.startswith("test_")
-                    or file.rsplit(".", 1)[0].endswith("_spec")
-                    or file.rsplit(".", 1)[0].endswith("_test")
-                    or file.rsplit(".", 1)[0].endswith("Test")
-                ):
+                if exclude_tests and self._is_test_path(root, file):
                     continue
                 if dirs_exclude and any([x in root for x in dirs_exclude]):
                     continue
