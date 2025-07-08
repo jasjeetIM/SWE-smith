@@ -70,7 +70,7 @@ def test_collect_trajs_basic(logs_trajectories, logs_run_evaluation, ft_xml_exam
             logs_trajectories,
             logs_run_evaluation,
             style="xml",
-            max_workers=4,
+            workers=4,
         )
 
         # Check that the output file exists
