@@ -79,10 +79,9 @@ folder with a `report.json` file indicating which instance IDs were successfully
 2. (From SWE-smith) Convert trajectories into SFT format.
 
 ```bash
-python -m swesmith.train.traj_mgr.transform_to_ft \
+python -m swesmith.train.traj_mgr.collect_trajs \
     --traj_dir path/to/trajectories/<username>/<run ID>/ \
-    --eval_dir logs/run_evaluation/<run ID>/ \
-    --only_resolved
+    --eval_dir logs/run_evaluation/<run ID>/
 ```
 
 This will product an `ft_xml_*.jsonl` file under the `trajectories_sft/` folder.

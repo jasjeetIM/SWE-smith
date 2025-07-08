@@ -3,11 +3,13 @@ import os
 import tempfile
 
 from pathlib import Path
-from swesmith.train.traj_mgr.transform_to_ft import main as transform_to_ft
+from swesmith.train.traj_mgr.collect_trajs import main as collect_trajs
 from swesmith.train.traj_mgr.utils import transform_traj_xml
 
 
-def test_transform_traj_xml_basic(logs_trajectories, ft_xml_example):
+def test_transform_traj_xml_basic(
+    logs_trajectories, logs_run_evaluation, ft_xml_example
+):
     # Load a sample trajectory
     for inst_id in [
         "getmoto__moto.694ce1f4.pr_7331",
@@ -15,6 +17,7 @@ def test_transform_traj_xml_basic(logs_trajectories, ft_xml_example):
         "pydantic__pydantic.acb0f10f.pr_8316",
     ]:
         traj_path = logs_trajectories / inst_id / f"{inst_id}.traj"
+        report_path = logs_run_evaluation / inst_id / "report.json"
 
         with open(traj_path, "r") as f:
             traj_data = json.load(f)
@@ -48,23 +51,26 @@ def test_transform_traj_xml_basic(logs_trajectories, ft_xml_example):
                     if "<parameter=" in action:
                         assert "</parameter>" in action
 
+        # Add `resolved` status
+        report = json.load(open(report_path))
         expected = [
             json.loads(x)
             for x in open(ft_xml_example, "r")
             if json.loads(x)["instance_id"] == inst_id
         ][0]
-        del expected["instance_id"]
+        transformed["resolved"] = report["resolved"]
+        transformed["instance_id"] = inst_id
         assert transformed == expected
 
 
-def test_transform_to_ft_basic(logs_trajectories, logs_run_evaluation, ft_xml_example):
+def test_collect_trajs_basic(logs_trajectories, logs_run_evaluation, ft_xml_example):
     with tempfile.TemporaryDirectory() as tmpdir:
-        transform_to_ft(
+        collect_trajs(
             Path(tmpdir),
             logs_trajectories,
             logs_run_evaluation,
             style="xml",
-            only_resolved=True,
+            max_workers=4,
         )
 
         # Check that the output file exists

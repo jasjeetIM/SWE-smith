@@ -23,7 +23,7 @@ and transforms them into a fine-tuning compatible jsonl format, namely...
 ]
 
 Usage: (from SWE-agent directory)
-python -m swesmith.train.traj_mgr.transform_to_ft --traj_dir <path> \
+python -m swesmith.train.traj_mgr.collect_trajs --traj_dir <path> \
     --eval_dir <path> \
     --resolved_only
 """
@@ -32,9 +32,44 @@ import argparse
 import json
 import os
 from pathlib import Path
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from swesmith.train.traj_mgr.utils import MAP_STYLE_TO_FUNC
 from tqdm.auto import tqdm
+from typing import Optional, Tuple
+
+
+def process_single_trajectory(
+    folder: str,
+    traj_dir: Path,
+    eval_dir: Path,
+    transform_traj,
+) -> Optional[Tuple[str, dict]]:
+    """Process a single trajectory folder and return the result."""
+    if not (eval_dir / folder).exists():
+        return None
+    if not (eval_dir / folder / "report.json").exists():
+        return None
+
+    try:
+        report_path = eval_dir / folder / "report.json"
+        report = json.loads(report_path.read_text())
+        is_resolved = (
+            report.get("resolved", False)
+            if folder not in report
+            else report[folder].get("resolved", False)
+        )
+
+        traj_path = traj_dir / folder / f"{folder}.traj"
+        traj = transform_traj(json.loads(traj_path.read_text()))
+        traj["instance_id"] = folder
+        traj["resolved"] = is_resolved
+        if "replay_config" in traj:
+            traj["model"] = json.loads(traj["replay_config"])["agent"]["model"]["name"]
+
+        return (folder, traj)
+    except Exception as e:
+        print(f"Error processing folder {folder}: {e}")
+        return None
 
 
 def main(
@@ -42,7 +77,7 @@ def main(
     traj_dir: Path,
     eval_dir: Path,
     style: str,
-    only_resolved: bool = False,
+    workers: int,
 ):
     if style not in MAP_STYLE_TO_FUNC:
         raise ValueError(
@@ -53,38 +88,37 @@ def main(
     folders = [x.name for x in traj_dir.iterdir() if x.is_dir()]
     print(f"Found {len(folders)} trajectory folders in {traj_dir}")
 
-    if only_resolved and eval_dir.exists():
-        print("Only keeping trajectories for resolved instances")
-
     out_path = out_dir / f"ft_{style}_{eval_dir.name}.jsonl"
 
+    # Process trajectories in parallel
+    results = []
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        # Submit all tasks
+        future_to_folder = {
+            executor.submit(
+                process_single_trajectory, folder, traj_dir, eval_dir, transform_traj
+            ): folder
+            for folder in folders
+        }
+
+        # Collect results as they complete
+        for future in tqdm(
+            as_completed(future_to_folder),
+            total=len(folders),
+            desc="Processing trajectories",
+        ):
+            result = future.result()
+            if result is not None:
+                results.append(result)
+
+    # Write results to file
     num_trajs = 0
     with open(out_path, "w") as f:
-        for folder in tqdm(folders):
-            if not (eval_dir / folder).exists():
-                continue
-            if not (eval_dir / folder / "report.json").exists():
-                continue
-
-            if only_resolved:
-                report_path = eval_dir / folder / "report.json"
-                report = json.loads(report_path.read_text())
-                is_resolved = (
-                    report.get("resolved", False)
-                    if folder not in report
-                    else report[folder].get("resolved", False)
-                )
-                if not is_resolved:
-                    continue
-
-            traj_path = traj_dir / folder / f"{folder}.traj"
-            traj = transform_traj(json.loads(traj_path.read_text()))
-            traj["instance_id"] = folder
+        for _, traj in results:
             f.write(json.dumps(traj) + "\n")
             num_trajs += 1
 
-    print(f"Found {num_trajs} valid trajectories")
-    print(f"Wrote trajectories to {out_path}")
+    print(f"Wrote {num_trajs} valid trajectories to {out_path.absolute()}")
 
 
 if __name__ == "__main__":
@@ -95,6 +129,7 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     arg_parser.add_argument(
+        "-t",
         "--traj_dir",
         type=Path,
         required=False,
@@ -102,6 +137,7 @@ if __name__ == "__main__":
         default=f"trajectories/{user}/",
     )
     arg_parser.add_argument(
+        "-e",
         "--eval_dir",
         type=Path,
         required=False,
@@ -109,6 +145,7 @@ if __name__ == "__main__":
         help="Path to folder containing evaluation results. Default: logs/run_evaluation/",
     )
     arg_parser.add_argument(
+        "-s",
         "--style",
         type=str,
         required=False,
@@ -117,17 +154,20 @@ if __name__ == "__main__":
         help="Style of the trajectories",
     )
     arg_parser.add_argument(
-        "--only_resolved",
-        action="store_true",
-        required=False,
-        help="Only keep trajectories for resolved instances",
-    )
-    arg_parser.add_argument(
+        "-o",
         "--out_dir",
         type=Path,
         required=False,
         default="trajectories_sft/",
         help="Path to output directory",
+    )
+    arg_parser.add_argument(
+        "-w",
+        "--workers",
+        type=int,
+        required=False,
+        default=min(32, os.cpu_count() + 4),
+        help="Maximum number of worker threads. Default: min(32, os.cpu_count() + 4)",
     )
     args = arg_parser.parse_args()
     main(**vars(args))
