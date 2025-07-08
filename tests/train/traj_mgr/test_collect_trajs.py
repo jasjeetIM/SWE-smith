@@ -60,6 +60,7 @@ def test_transform_traj_xml_basic(
         ][0]
         transformed["resolved"] = report["resolved"]
         transformed["instance_id"] = inst_id
+        transformed["model"] = json.loads(traj_data["replay_config"])["agent"]["model"]["name"]
         assert transformed == expected
 
 

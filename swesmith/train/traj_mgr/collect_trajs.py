@@ -60,11 +60,14 @@ def process_single_trajectory(
         )
 
         traj_path = traj_dir / folder / f"{folder}.traj"
-        traj = transform_traj(json.loads(traj_path.read_text()))
+        traj_orig = json.loads(traj_path.read_text())
+        traj = transform_traj(traj_orig)
         traj["instance_id"] = folder
         traj["resolved"] = is_resolved
-        if "replay_config" in traj:
-            traj["model"] = json.loads(traj["replay_config"])["agent"]["model"]["name"]
+        if "replay_config" in traj_orig:
+            traj["model"] = json.loads(traj_orig["replay_config"])["agent"]["model"][
+                "name"
+            ]
 
         return (folder, traj)
     except Exception as e:
@@ -158,7 +161,7 @@ if __name__ == "__main__":
         "--out_dir",
         type=Path,
         required=False,
-        default="trajectories_sft/",
+        default=".",
         help="Path to output directory",
     )
     arg_parser.add_argument(
