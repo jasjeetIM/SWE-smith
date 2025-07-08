@@ -61,8 +61,12 @@ def test_transform_traj_xml_basic(
         ][0]
         transformed["resolved"] = report["resolved"]
         transformed["instance_id"] = inst_id
-        transformed["model"] = json.loads(traj_data["replay_config"])["agent"]["model"]["name"]
-        hash_id = generate_hash("".join([x["content"] for x in transformed["messages"][1:]]))
+        transformed["model"] = json.loads(traj_data["replay_config"])["agent"]["model"][
+            "name"
+        ]
+        hash_id = generate_hash(
+            "".join([x["content"] for x in transformed["messages"][1:]])
+        )
         transformed["traj_id"] = f"{inst_id}.{hash_id}"
         assert transformed == expected
 
