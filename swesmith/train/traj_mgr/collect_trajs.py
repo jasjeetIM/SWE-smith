@@ -33,6 +33,7 @@ import json
 import os
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from swesmith.constants import generate_hash
 from swesmith.train.traj_mgr.utils import MAP_STYLE_TO_FUNC
 from tqdm.auto import tqdm
 from typing import Optional, Tuple
@@ -68,6 +69,8 @@ def process_single_trajectory(
             traj["model"] = json.loads(traj_orig["replay_config"])["agent"]["model"][
                 "name"
             ]
+        hash_id = generate_hash("".join([x["content"] for x in traj["messages"][1:]]))
+        traj["traj_id"] = f"{folder}.{hash_id}"
 
         return (folder, traj)
     except Exception as e:
@@ -91,7 +94,7 @@ def main(
     folders = [x.name for x in traj_dir.iterdir() if x.is_dir()]
     print(f"Found {len(folders)} trajectory folders in {traj_dir}")
 
-    out_path = out_dir / f"ft_{style}_{eval_dir.name}.jsonl"
+    out_path = out_dir / f"{eval_dir.name}.{style}.jsonl"
 
     # Process trajectories in parallel
     results = []
