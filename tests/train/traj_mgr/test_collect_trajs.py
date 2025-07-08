@@ -3,6 +3,7 @@ import os
 import tempfile
 
 from pathlib import Path
+from swesmith.constants import generate_hash
 from swesmith.train.traj_mgr.collect_trajs import main as collect_trajs
 from swesmith.train.traj_mgr.utils import transform_traj_xml
 
@@ -61,6 +62,8 @@ def test_transform_traj_xml_basic(
         transformed["resolved"] = report["resolved"]
         transformed["instance_id"] = inst_id
         transformed["model"] = json.loads(traj_data["replay_config"])["agent"]["model"]["name"]
+        hash_id = generate_hash("".join([x["content"] for x in transformed["messages"][1:]]))
+        transformed["traj_id"] = f"{inst_id}.{hash_id}"
         assert transformed == expected
 
 
@@ -75,7 +78,7 @@ def test_collect_trajs_basic(logs_trajectories, logs_run_evaluation, ft_xml_exam
         )
 
         # Check that the output file exists
-        expected_file_path = f"ft_xml_{os.path.basename(logs_run_evaluation)}.jsonl"
+        expected_file_path = f"{os.path.basename(logs_run_evaluation)}.xml.jsonl"
         output_path = Path(tmpdir) / expected_file_path
         assert output_path.exists()
 

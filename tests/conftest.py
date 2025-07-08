@@ -88,7 +88,7 @@ def logs_run_validation():
 
 @pytest.fixture
 def ft_xml_example():
-    return Path(repo_root) / "tests/test_logs/ft_xml_example.jsonl"
+    return Path(repo_root) / "tests/test_logs/run_evaluation.xml.jsonl"
 
 
 @pytest.fixture
