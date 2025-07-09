@@ -1127,16 +1127,17 @@ class MypyE93f06ce(PythonProfile):
     min_testing: bool = True
 
     def get_test_cmd(self, instance: str, f2p_only: bool = False) -> tuple[str, list]:
+        test_keys = []
         if f2p_only and FAIL_TO_PASS in instance:
-            test_keys = " or ".join(
-                [x.rsplit("::", 1)[-1] for x in instance[FAIL_TO_PASS]]
+            test_keys = [x.rsplit("::", 1)[-1] for x in instance[FAIL_TO_PASS]]
+        elif INSTANCE_REF in instance and "test_patch" in instance[INSTANCE_REF]:
+            test_keys = re.findall(
+                r"\[case ([^\]]+)\]", instance[INSTANCE_REF]["test_patch"]
             )
-        pattern = r"\[case ([^\]]+)\]"
-        if INSTANCE_REF in instance and "test_patch" in instance[INSTANCE_REF]:
-            test_keys = " or ".join(
-                re.findall(pattern, instance[INSTANCE_REF]["test_patch"])
-            )
-        return f'{self.test_cmd} "{test_keys}"'
+        if len(test_keys) > 1:
+            test_keys = " or ".join(test_keys)
+            return f'{self.test_cmd} "{test_keys}"'
+        return self.test_cmd
 
     def log_parser(self, log: str) -> dict[str, str]:
         test_status_map = {}
