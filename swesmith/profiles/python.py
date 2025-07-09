@@ -41,7 +41,8 @@ class PythonProfile(RepoProfile):
         PATH_TO_REQS = "swesmith_environment.yml"
 
         client = docker.from_env()
-        reqs = open(self._env_yml).read()
+        with open(self._env_yml) as f:
+            reqs = f.read()
 
         setup_commands = [
             "#!/bin/bash",

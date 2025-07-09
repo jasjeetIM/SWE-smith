@@ -52,8 +52,10 @@ pandas/tests/indexing/test_datetime.py::TestDatetimeIndex::test_getitem_pyarrow_
 
 def test_get_eval_report(task_instance_path, logs_run_evaluation):
     instance_id = "pandas-dev__pandas.95280573.pr_53652"
-    task_instance = json.load(open(task_instance_path))
-    expected = json.load(open(logs_run_evaluation / instance_id / "report.json"))
+    with open(task_instance_path) as f:
+        task_instance = json.load(f)
+    with open(logs_run_evaluation / instance_id / "report.json") as f:
+        expected = json.load(f)
     del expected[KEY_MODEL]
     mock_prediction = {
         KEY_INSTANCE_ID: instance_id,
@@ -73,7 +75,9 @@ def test_get_valid_report(logs_run_validation):
         logs_run_validation / "test_output_pre_gold.txt",
         {"repo": "pandas-dev__pandas.95280573"},
     )
-    assert report == json.load(open(logs_run_validation / "report.json"))
+    with open(logs_run_validation / "report.json") as f:
+        expected = json.load(f)
+    assert report == expected
 
 
 def test_get_eval_tests_report_basic():

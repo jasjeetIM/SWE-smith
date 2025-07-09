@@ -14,7 +14,8 @@ from tqdm.auto import tqdm
 
 
 def main(base_url: str):
-    test_insts = [json.loads(x) for x in open("difficulty_test.jsonl")]
+    with open("difficulty_test.jsonl") as f:
+        test_insts = [json.loads(x) for x in f]
     client = openai.Client(base_url=f"{base_url}/v1", api_key="swesmith")
     responses = []
 

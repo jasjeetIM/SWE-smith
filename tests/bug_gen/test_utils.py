@@ -29,8 +29,10 @@ class Bar:
 
     def test_apply_code_change(self):
         # Setup CodeEntity and BugRewrite
-        node = ast.parse(open(self.test_file).read()).body[0]
-        entity = _build_entity(node, open(self.test_file).read(), self.test_file)
+        with open(self.test_file) as f:
+            file_content = f.read()
+        node = ast.parse(file_content).body[0]
+        entity = _build_entity(node, file_content, self.test_file)
         bug = utils.BugRewrite(
             rewrite="def foo():\n    return 42\n",
             explanation="change return",

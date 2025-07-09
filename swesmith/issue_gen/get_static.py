@@ -119,9 +119,11 @@ def main(dataset_path: str | Path) -> None:
     dataset_path = Path(dataset_path)
     dataset = []
     if dataset_path.name.endswith(".json"):
-        dataset = json.load(open(dataset_path, "r"))
+        with open(dataset_path, "r") as f:
+            dataset = json.load(f)
     elif dataset_path.name.endswith(".jsonl"):
-        dataset = [json.loads(x) for x in open(dataset_path, "r")]
+        with open(dataset_path, "r") as f:
+            dataset = [json.loads(x) for x in f]
     else:
         raise ValueError(
             f"Unsupported file format (must be .json, .jsonl): {dataset_path}"

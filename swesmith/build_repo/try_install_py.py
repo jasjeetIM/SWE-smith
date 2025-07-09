@@ -108,12 +108,18 @@ def main(
         )
 
         # Edit env.yml such that name of package is excluded from `pip`
-        lines = open(p._env_yml, "r").readlines()
+        with open(p._env_yml, "r") as f:
+            lines = f.readlines()
         with open(p._env_yml, "w") as f:
             for line in lines:
                 if line.strip().startswith(f"- {p.repo}=="):
                     continue
                 f.write(line)
+
+        with open(install_script) as install_f:
+            install_lines = [
+                l.strip("\n") for l in install_f.readlines() if len(l.strip()) > 0
+            ]
 
         with open(str(p._env_yml).replace(".yml", ".sh"), "w") as f:
             f.write(
@@ -123,11 +129,7 @@ def main(
                         f"git clone git@github.com:{p.owner}/{p.repo}.git",
                         f"git checkout {p.commit}",
                     ]
-                    + [
-                        l.strip("\n")
-                        for l in open(install_script).readlines()
-                        if len(l.strip()) > 0
-                    ]
+                    + install_lines
                 )
                 + "\n"
             )

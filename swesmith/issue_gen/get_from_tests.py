@@ -155,7 +155,8 @@ def _process_instance(instance: dict, config_file: str | None, model: str | None
 
     cloned = False
     if log_dir.exists() and path_metadata.exists() and path_issue.exists():
-        metadata = json.load(open(path_metadata, "r"))
+        with open(path_metadata, "r") as f:
+            metadata = json.load(f)
         test_idx = metadata["test_idx"]
         test_info = metadata["test_info"]
         test_output = metadata["test_output"]
@@ -180,7 +181,8 @@ def _process_instance(instance: dict, config_file: str | None, model: str | None
 
     generated = None
     if config_file and model:
-        config = yaml.safe_load(open(config_file, "r"))
+        with open(config_file, "r") as f:
+            config = yaml.safe_load(f)
         messages = [
             {"content": config["system"], "role": "system"},
             {
@@ -227,7 +229,8 @@ def main(dataset_path: str, config_file: str | None, model: str | None, n_worker
             "Config file must be provided if model is provided."
         )
 
-    dataset = json.load(open(dataset_path, "r"))
+    with open(dataset_path, "r") as f:
+        dataset = json.load(f)
     print(f"Found {len(dataset)} task instances to generate instructions for")
     random.seed(24)
 

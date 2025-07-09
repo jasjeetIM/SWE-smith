@@ -53,12 +53,12 @@ def test_transform_traj_xml_basic(
                         assert "</parameter>" in action
 
         # Add `resolved` status
-        report = json.load(open(report_path))
-        expected = [
-            json.loads(x)
-            for x in open(ft_xml_example, "r")
-            if json.loads(x)["instance_id"] == inst_id
-        ][0]
+        with open(report_path) as f:
+            report = json.load(f)
+        with open(ft_xml_example, "r") as f:
+            expected = [
+                json.loads(x) for x in f if json.loads(x)["instance_id"] == inst_id
+            ][0]
         transformed["resolved"] = report["resolved"]
         transformed["instance_id"] = inst_id
         transformed["model"] = json.loads(traj_data["replay_config"])["agent"]["model"][

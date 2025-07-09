@@ -97,9 +97,11 @@ def main(
 
     # Get dataset
     if dataset_path.endswith(".json"):
-        dataset = json.load(open(dataset_path))
+        with open(dataset_path) as f:
+            dataset = json.load(f)
     elif dataset_path.endswith(".jsonl"):
-        dataset = [json.loads(x) for x in open(dataset_path)]
+        with open(dataset_path) as f:
+            dataset = [json.loads(x) for x in f]
     elif dataset_path == HF_DATASET:
         dataset = load_dataset(dataset_path, split="train")
     else:
@@ -122,9 +124,11 @@ def main(
         print("Using gold predictions for eval (ignoring `predictions_path` argument)")
     else:
         if predictions_path.endswith(".json"):
-            predictions = json.load(open(predictions_path))
+            with open(predictions_path) as f:
+                predictions = json.load(f)
         elif predictions_path.endswith(".jsonl"):
-            predictions = [json.loads(x) for x in open(predictions_path)]
+            with open(predictions_path) as f:
+                predictions = [json.loads(x) for x in f]
             predictions = {x[KEY_INSTANCE_ID]: x for x in predictions}
         else:
             raise ValueError("Predictions must be in .json or .jsonl format")
@@ -185,7 +189,8 @@ def main(
         report_path = log_dir_parent / instance_id / LOG_REPORT
         if not report_path.exists():
             continue
-        report = json.load(open(report_path))
+        with open(report_path) as f:
+            report = json.load(f)
         resolved = report.get("resolved", False)
         num_resolved += resolved
         if resolved:

@@ -148,7 +148,8 @@ def main(
     #     "repo": <mirror repo name>,
     # }
     print(f"Running validation for {bug_patches}...")
-    bug_patches = json.load(open(bug_patches, "r"))
+    with open(bug_patches, "r") as f:
+        bug_patches = json.load(f)
     bug_patches = [
         {
             **x,

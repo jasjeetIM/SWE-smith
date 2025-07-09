@@ -177,11 +177,12 @@ def _main(
     completed_ids = []
     subfolders = os.listdir(validation_logs_path)
     if os.path.exists(task_instances_path):
-        task_instances = [
-            x
-            for x in json.load(open(task_instances_path))
-            if x[KEY_INSTANCE_ID] in subfolders  # Omits removed bugs
-        ]
+        with open(task_instances_path) as f:
+            task_instances = [
+                x
+                for x in json.load(f)
+                if x[KEY_INSTANCE_ID] in subfolders  # Omits removed bugs
+            ]
         completed_ids = [x[KEY_INSTANCE_ID] for x in task_instances]
         print(f"Found {len(task_instances)} existing task instances")
         subfolders = [x for x in subfolders if x not in completed_ids]
@@ -202,7 +203,8 @@ def _main(
             stats = skip_print(f"{subfolder}: No results", pbar, stats, verbose)
             continue
 
-        results = json.load(open(path_results))
+        with open(path_results) as f:
+            results = json.load(f)
         if FAIL_TO_PASS not in results or PASS_TO_PASS not in results:
             stats = skip_print(
                 f"{subfolder}: No validatable bugs", pbar, stats, verbose
@@ -224,9 +226,11 @@ def _main(
             )
             continue
 
+        with open(path_patch) as f:
+            patch_content = f.read()
         task_instance = {
             KEY_INSTANCE_ID: subfolder,
-            KEY_PATCH: open(path_patch).read(),
+            KEY_PATCH: patch_content,
             FAIL_TO_PASS: results[FAIL_TO_PASS],
             PASS_TO_PASS: results[PASS_TO_PASS],
             "created_at": datetime.now().isoformat(),
