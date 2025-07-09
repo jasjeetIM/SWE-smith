@@ -1,7 +1,36 @@
 import libcst
 
-from swesmith.bug_gen.procedural import FLIPPED_OPERATORS, PythonProceduralModifier
+from swesmith.bug_gen.procedural import PythonProceduralModifier
 from swesmith.constants import CodeProperty
+
+
+FLIPPED_OPERATORS = {
+    libcst.Add: libcst.Subtract,
+    libcst.And: libcst.Or,
+    libcst.BitAnd: libcst.BitOr,
+    libcst.BitAnd: libcst.BitXor,
+    libcst.BitOr: libcst.BitAnd,
+    libcst.BitXor: libcst.BitAnd,
+    libcst.Divide: libcst.Multiply,
+    libcst.Equal: libcst.NotEqual,
+    libcst.FloorDivide: libcst.Modulo,
+    libcst.GreaterThan: libcst.LessThan,
+    libcst.GreaterThanEqual: libcst.LessThanEqual,
+    libcst.In: libcst.NotIn,
+    libcst.Is: libcst.IsNot,
+    libcst.IsNot: libcst.Is,
+    libcst.LeftShift: libcst.RightShift,
+    libcst.LessThan: libcst.GreaterThan,
+    libcst.LessThanEqual: libcst.GreaterThanEqual,
+    libcst.Modulo: libcst.FloorDivide,
+    libcst.Multiply: libcst.Divide,
+    libcst.NotEqual: libcst.Equal,
+    libcst.NotIn: libcst.In,
+    libcst.Or: libcst.And,
+    libcst.Power: libcst.Multiply,
+    libcst.RightShift: libcst.LeftShift,
+    libcst.Subtract: libcst.Add,
+}
 
 
 class OperationChangeModifier(PythonProceduralModifier):

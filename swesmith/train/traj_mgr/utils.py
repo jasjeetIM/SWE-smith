@@ -34,6 +34,11 @@ def get_messages(traj: dict) -> list[dict]:
     if "messages" in last_step:
         return last_step["messages"][:-1]
     else:
+        if last_step["response"] in [
+            "Exit due to cost limit",
+            "Exit due to context window",
+        ]:
+            return traj["trajectory"][-2]["query"][:]
         return last_step["query"][:]
 
 

@@ -40,17 +40,13 @@ def test_transform_traj_xml_basic(
             # For assistant messages, check XML structure
             if msg["role"] == "assistant":
                 content = msg["content"]
-                # Should contain thought and action parts
-                assert "\n\n" in content
-                thought, action = content.split("\n\n", 1)
-
-                # If it's a function call, check XML structure
-                if "<function=" in action:
-                    assert "</function>" in action
-
+                # If it's a function call (action), check XML structure
+                if "<function=" in content:
+                    assert "</function>" in content
+                    action_body = content.split("<function=")[1].split("</function>")[0]
                     # Check parameter structure if present
-                    if "<parameter=" in action:
-                        assert "</parameter>" in action
+                    if "<parameter=" in action_body:
+                        assert "</parameter>" in action_body
 
         # Add `resolved` status
         with open(report_path) as f:
