@@ -84,10 +84,11 @@ def transform_traj_xml(traj: dict) -> dict:
                     + "<function=submit>\n</function>"
                 )
             else:
-                content = message["thought"]
+                content = message.get("thought", message["content"])
                 if "tool_calls" in message:
                     action = "\n".join(tool_call_to_action(message["tool_calls"]))
                     content += f"\n\n{action}"
+                content = content.strip()
         elif message["role"] == "system":
             # We replace the system prompt that was used for generating the training trajectories
             # with the system prompt that SWE-agent-LM will use for inference.
