@@ -61,23 +61,24 @@ def transform_traj_backticks(traj: dict) -> dict:
     return {"messages": new_traj}
 
 
-def transform_traj_xml(traj: dict) -> dict:
-    def tool_call_to_action(tool_calls: None | list[dict]) -> list[str]:
-        actions = []
-        if tool_calls is None:
-            return []
-        for tool_call in tool_calls:
-            action = [f"<function={tool_call['function']['name']}>"]
-            arguments = json.loads(tool_call["function"]["arguments"])
-            for k, v in arguments.items():
-                a = f"<parameter={k}>{v}</parameter>"
-                if k in XML_STR_REPLACES:
-                    a = f"<parameter={k}>\n{v}\n</parameter>"
-                action.append(a)
-            action.append("</function>")
-            actions.append("\n".join(action))
-        return actions
+def tool_call_to_action(tool_calls: None | list[dict]) -> list[str]:
+    actions = []
+    if tool_calls is None:
+        return []
+    for tool_call in tool_calls:
+        action = [f"<function={tool_call['function']['name']}>"]
+        arguments = json.loads(tool_call["function"]["arguments"])
+        for k, v in arguments.items():
+            a = f"<parameter={k}>{v}</parameter>"
+            if k in XML_STR_REPLACES:
+                a = f"<parameter={k}>\n{v}\n</parameter>"
+            action.append(a)
+        action.append("</function>")
+        actions.append("\n".join(action))
+    return actions
 
+
+def transform_traj_xml(traj: dict) -> dict:
     new_traj = []
     for message in get_messages(traj):
         role = message["role"] if message["role"] != "tool" else "user"

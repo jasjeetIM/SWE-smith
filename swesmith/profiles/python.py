@@ -1126,7 +1126,11 @@ class MypyE93f06ce(PythonProfile):
     )
     min_testing: bool = True
 
-    def get_test_cmd(self, instance: str) -> tuple[str, list]:
+    def get_test_cmd(self, instance: str, f2p_only: bool = False) -> tuple[str, list]:
+        if f2p_only and FAIL_TO_PASS in instance:
+            test_keys = " or ".join(
+                [x.rsplit("::", 1)[-1] for x in instance[FAIL_TO_PASS]]
+            )
         pattern = r"\[case ([^\]]+)\]"
         if INSTANCE_REF in instance and "test_patch" in instance[INSTANCE_REF]:
             test_keys = " or ".join(

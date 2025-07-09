@@ -125,7 +125,7 @@ RUN make build
     def log_parser(self, log: str) -> dict[str, str]:
         return parse_log_jest(log)
 
-    def get_test_cmd(self, instance: dict):
+    def get_test_cmd(self, instance: dict, f2p_only: bool = False):
         if KEY_PATCH not in instance:
             return self.test_cmd, []
         test_folders = []
