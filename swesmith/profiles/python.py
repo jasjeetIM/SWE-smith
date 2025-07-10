@@ -174,13 +174,6 @@ class Bottlea8dfef30(PythonProfile):
 
 
 @dataclass
-class BoxA23451d2(PythonProfile):
-    owner: str = "cdgriffith"
-    repo: str = "Box"
-    commit: str = "a23451d2869a511280eebe194efca41efadd2706"
-
-
-@dataclass
 class Cantools0c6a7871(PythonProfile):
     owner: str = "cantools"
     repo: str = "cantools"
@@ -227,7 +220,7 @@ class Cloudpickle6220b0ce(PythonProfile):
 
 
 @dataclass
-class ColorlogDfa10f59(PythonProfile):
+class PythonColorlogDfa10f59(PythonProfile):
     owner: str = "borntyping"
     repo: str = "python-colorlog"
     commit: str = "dfa10f59186d3d716aec4165ee79e58f2265c0eb"
@@ -286,7 +279,7 @@ class Dominate9082227e(PythonProfile):
 
 
 @dataclass
-class Dotenv2b8635b7(PythonProfile):
+class PythonDotenv2b8635b7(PythonProfile):
     owner: str = "theskumar"
     repo: str = "python-dotenv"
     commit: str = "2b8635b79f1aa15cade0950117d4e7d12c298766"
@@ -520,7 +513,7 @@ class LineProfilerA646bf0f(PythonProfile):
 
 
 @dataclass
-class Markdownify6258f5c3(PythonProfile):
+class PythonMarkdownify6258f5c3(PythonProfile):
     owner: str = "matthewwithanm"
     repo: str = "python-markdownify"
     commit: str = "6258f5c38b97ab443b4ddf03e6676ce29b392d06"
@@ -922,7 +915,7 @@ class StarletteDb5063c2(PythonProfile):
 
 
 @dataclass
-class StringSimilarity115acaac(PythonProfile):
+class PythonStringSimilarity115acaac(PythonProfile):
     owner: str = "luozhouyang"
     repo: str = "python-string-similarity"
     commit: str = "115acaacf926b41a15664bd34e763d074682bda3"
