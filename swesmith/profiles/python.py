@@ -167,6 +167,13 @@ class Boltons3bfcfdd0(PythonProfile):
 
 
 @dataclass
+class Bottlea8dfef30(PythonProfile):
+    owner: str = "bottlepy"
+    repo: str = "bottle"
+    commit: str = "a8dfef301dec35f13e7578306002c40796651629"
+
+
+@dataclass
 class BoxA23451d2(PythonProfile):
     owner: str = "cdgriffith"
     repo: str = "Box"
@@ -936,7 +943,6 @@ class Sympy2ab64612(PythonProfile):
     owner: str = "sympy"
     repo: str = "sympy"
     commit: str = "2ab64612efb287f09822419f4127878a4b664f71"
-    install_cmds: list = field(default_factory=lambda: ["pip install -e ."])
     min_testing: bool = True
     min_pregold: bool = True
 
@@ -1135,9 +1141,9 @@ class MypyE93f06ce(PythonProfile):
                 r"\[case ([^\]]+)\]", instance[INSTANCE_REF]["test_patch"]
             )
         if len(test_keys) > 1:
-            test_keys = " or ".join(test_keys)
-            return f'{self.test_cmd} "{test_keys}"'
-        return self.test_cmd
+            combined = " or ".join(test_keys)
+            return f'{self.test_cmd} "{combined}"', test_keys
+        return self.test_cmd, test_keys
 
     def log_parser(self, log: str) -> dict[str, str]:
         test_status_map = {}
