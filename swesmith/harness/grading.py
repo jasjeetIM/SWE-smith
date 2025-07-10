@@ -228,8 +228,8 @@ def get_eval_report(
             if len(test_files) > 0
             else tests
         )
-        inst[FAIL_TO_PASS] = filter_irrelevant_tests
-        inst[PASS_TO_PASS] = filter_irrelevant_tests
+        inst[FAIL_TO_PASS] = filter_irrelevant_tests(inst[FAIL_TO_PASS])
+        inst[PASS_TO_PASS] = filter_irrelevant_tests(inst[PASS_TO_PASS])
 
     # Get evaluation test report
     report = get_eval_tests_report(test_status_map, inst)
