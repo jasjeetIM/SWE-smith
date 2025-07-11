@@ -10,7 +10,7 @@ All fine-tuning + model serving is carried out with [Modal](https://modal.com/).
 To fine tune a model, follow this procedure:
 1. Download a model checkpoint from HuggingFace
 ```bash
-modal run download_checkpoint.py --source-repo Qwen/Qwen2.5-7B-Instruct --target-dir /llm-weights/Qwen/Qwen2.5-7B-Instruct
+modal run download_checkpoint.py --source-repo Qwen/Qwen2.5-7B-Instruct --target-dir /weights/Qwen/Qwen2.5-7B-Instruct
 ```
 
 2. Run fine tuning with a SWE-smith dataset
@@ -20,7 +20,7 @@ NGPUS=8 modal run train/run_ft_torchtune.py --config train/config/torchtune.yml
 
 3. Host model with `sglang` and run inference with SWE-agent
 ```bash
-N_HOURS=4 N_GPUS=4 modal run --detach serve_sglang.py --model-path /llm-weights/my-oss-model --served-model-name gpt-4o --tokenizer-path /llm-weights/Qwen/Qwen2.5-Coder-32B-Instruct
+N_HOURS=4 N_GPUS=4 modal run --detach serve_sglang.py --model-path /weights/my-oss-model --served-model-name gpt-4o --tokenizer-path /weights/Qwen/Qwen2.5-Coder-32B-Instruct
 ```
 
 From the SWE-agent local repository, run the following command to start running inference with the local model

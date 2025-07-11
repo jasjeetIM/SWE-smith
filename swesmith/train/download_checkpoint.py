@@ -6,16 +6,14 @@ Download a checkpoint from Hugging Face.
 modal run download_checkpoint.py --source-repo /path/to/source_repo --target-dir /path/to/target_dir
 
 Example:
-modal run download_checkpoint.py --source-repo meta-llama/Llama-3.3-70B-Instruct --target-dir /llm-weights/meta-llama/Llama-3.3-70B-Instruct
+modal run download_checkpoint.py --source-repo meta-llama/Llama-3.3-70B-Instruct --target-dir /weights/meta-llama/Llama-3.3-70B-Instruct
 """
 
 import modal
 import os
 
-from swesmith.constants import VOLUME_NAME_MODEL
-
 app = modal.App("download-hf-ckpts")
-model_volume = modal.Volume.from_name(VOLUME_NAME_MODEL, create_if_missing=True)
+model_volume = modal.Volume.from_name("weights", create_if_missing=True)
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -29,7 +27,7 @@ HOURS = 60 * MINUTES
 
 
 @app.function(
-    volumes={f"/{VOLUME_NAME_MODEL}": model_volume},
+    volumes={"weights": model_volume},
     image=image,
     timeout=1 * HOURS,
     secrets=[modal.Secret.from_name("john-hf-secret")],

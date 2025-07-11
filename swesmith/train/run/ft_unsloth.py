@@ -11,8 +11,6 @@ import os
 import json
 import modal
 
-from swesmith.constants import VOLUME_NAME_DATASET, VOLUME_NAME_MODEL
-
 unsloth_image = (
     modal.Image.from_registry("nvidia/cuda:12.2.0-devel-ubuntu22.04", add_python="3.11")
     .apt_install("git")
@@ -29,8 +27,8 @@ unsloth_image = (
     .run_commands("pip install wandb")
 )
 
-trained_model_volume = modal.Volume.from_name(VOLUME_NAME_MODEL, create_if_missing=True)
-dataset_volume = modal.Volume.from_name(VOLUME_NAME_DATASET, create_if_missing=True)
+trained_model_volume = modal.Volume.from_name("weights", create_if_missing=True)
+dataset_volume = modal.Volume.from_name("data", create_if_missing=True)
 
 MINUTES = 60  # seconds
 HOURS = 60 * MINUTES
@@ -47,8 +45,8 @@ app = modal.App("unsloth-sft")
     timeout=24 * HOURS,
     allow_concurrent_inputs=1000,
     volumes={
-        f"/{VOLUME_NAME_MODEL}": trained_model_volume,
-        f"/{VOLUME_NAME_DATASET}": dataset_volume,
+        "weights": trained_model_volume,
+        "/data": dataset_volume,
     },
     secrets=[
         modal.Secret.from_name("john-wandb-secret"),
@@ -218,10 +216,10 @@ def train(
 
 @app.local_entrypoint()
 def main():
-    data_path = f"/{VOLUME_NAME_DATASET}/difficulty/difficulty_train.jsonl"
+    data_path = "/data/difficulty/difficulty_train.jsonl"
     exp_name = "qwen2p5-coder-32b-lora-lr1e-4-warmup5___difficulty"
-    output_dir = f"/{VOLUME_NAME_MODEL}/outputs/{exp_name}"
-    model_path = f"/{VOLUME_NAME_MODEL}/Qwen/Qwen2.5-Coder-32B-Instruct"
+    output_dir = "/weights/outputs/{exp_name}"
+    model_path = "/weights/Qwen/Qwen2.5-Coder-32B-Instruct"
     print(
         f"Running training with exp_name={exp_name}, output_dir={output_dir}, model_path={model_path}, data_path={data_path}"
     )

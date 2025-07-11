@@ -1,8 +1,8 @@
 """Host a model with SGLang
 
-N_HOURS=4 N_GPUS=4 modal run --detach serve_sglang.py --model-path /llm-weights/my-oss-model --served-model-name my-oss-model --tokenizer-path /llm-weights/Qwen/Qwen2.5-Coder-32B-Instruct
+N_HOURS=4 N_GPUS=4 modal run --detach serve_sglang.py --model-path /weights/my-oss-model --served-model-name my-oss-model --tokenizer-path /weights/Qwen/Qwen2.5-Coder-32B-Instruct
 
-NOTE: Make sure /llm-weights/my-oss-model points at a folder with weights (on Modal Volume)
+NOTE: Make sure /weights/my-oss-model points at a folder with weights (on Modal Volume)
 """
 
 import modal
@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 
-from swesmith.constants import VOLUME_NAME_MODEL, SGLANG_API_KEY
+from swesmith.constants import SGLANG_API_KEY
 
 sglang_image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -23,7 +23,7 @@ MINUTES = 60  # seconds
 HOURS = 60 * MINUTES
 
 try:
-    volume = modal.Volume.from_name(VOLUME_NAME_MODEL, create_if_missing=False)
+    volume = modal.Volume.from_name("weights", create_if_missing=False)
 except modal.exception.NotFoundError:
     raise Exception("Download models first with modal run download_model_to_volume.py")
 
@@ -40,7 +40,7 @@ app = modal.App("sglang-serve")
     container_idle_timeout=5 * MINUTES,
     timeout=int(N_HOURS * HOURS),
     allow_concurrent_inputs=1000,
-    volumes={f"/{VOLUME_NAME_MODEL}": volume},
+    volumes={"weights": volume},
 )
 def run_server(
     model_path: str,
@@ -79,7 +79,7 @@ def run_server(
 def main(
     model_path: str,
     served_model_name: str,
-    tokenizer_path: str = "/llm-weights/Qwen/Qwen2.5-Coder-7B-Instruct",
+    tokenizer_path: str = "/weights/Qwen/Qwen2.5-Coder-7B-Instruct",
     context_length: int = 32768,
 ):
     print(f"Serving {model_path} on {served_model_name} with {N_GPUS} GPUs")

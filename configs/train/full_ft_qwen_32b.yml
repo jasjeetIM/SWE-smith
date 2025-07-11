@@ -18,20 +18,20 @@
 # best to use 7B_full_single_device.yaml for those cases
 
 exp_name: qwen2p5-coder-32b-full-lr5e-5-warmup5___ft_xml_all_250413
-output_dir: /llm-weights/final/${exp_name}
+output_dir: /weights/final/${exp_name}
 # Model Arguments
 model:
   _component_: torchtune.models.qwen2_5.qwen2_5_32b_instruct
 
 tokenizer:
   _component_: torchtune.models.qwen2_5.qwen2_5_tokenizer
-  path: /llm-weights/Qwen/Qwen2.5-Coder-32B-Instruct/vocab.json
-  merges_file: /llm-weights/Qwen/Qwen2.5-Coder-32B-Instruct/merges.txt
+  path: /weights/Qwen/Qwen2.5-Coder-32B-Instruct/vocab.json
+  merges_file: /weights/Qwen/Qwen2.5-Coder-32B-Instruct/merges.txt
   max_seq_len: 32768
 
 checkpointer:
   _component_: torchtune.training.FullModelHFCheckpointer
-  checkpoint_dir: /llm-weights/Qwen/Qwen2.5-Coder-32B-Instruct
+  checkpoint_dir: /weights/Qwen/Qwen2.5-Coder-32B-Instruct
   checkpoint_files: [
     model-00001-of-00014.safetensors,
     model-00002-of-00014.safetensors,
@@ -91,7 +91,7 @@ compile: True  # pytorch compile, set to true for better perf/memory
 # Logging
 metric_logger:
   _component_: torchtune.training.metric_logging.WandBLogger
-  project: devrl-sft
+  project: swesmith
   group: ${exp_name}
   job_type: full_finetune_distributed
 log_every_n_steps: 1
