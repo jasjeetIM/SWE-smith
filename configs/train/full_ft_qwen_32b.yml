@@ -17,8 +17,8 @@
 # Single device full finetuning requires more memory optimizations. It's
 # best to use 7B_full_single_device.yaml for those cases
 
-exp_name: qwen2p5-coder-32b-full-lr5e-5-warmup5___ft_xml_all_250413
-output_dir: /weights/final/${exp_name}
+exp_name: qwen2p5-coder-32b-full-lr1e-4-warmup5___xml_all_250413
+output_dir: /weights/exps/${exp_name}
 # Model Arguments
 model:
   _component_: torchtune.models.qwen2_5.qwen2_5_32b_instruct
@@ -58,7 +58,7 @@ resume_from_checkpoint: False
 dataset:
   _component_: torchtune.datasets.chat_dataset
   source: json
-  data_files: /datasets/trajectories_sft/ft_xml_all_250413.jsonl
+  data_files: /data/archive/swesmith.trajs.250413.jsonl
   split: train
   conversation_column: messages
   conversation_style: openai
@@ -74,7 +74,7 @@ optimizer:
   _component_: torch.optim.AdamW
   fused: True
   weight_decay: 0.01
-  lr: 5e-5
+  lr: 1e-4
 lr_scheduler:
   _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
   num_warmup_steps: 5

@@ -40,7 +40,7 @@ app = modal.App("sglang-serve")
     container_idle_timeout=5 * MINUTES,
     timeout=int(N_HOURS * HOURS),
     allow_concurrent_inputs=1000,
-    volumes={"weights": volume},
+    volumes={"/weights": volume},
 )
 def run_server(
     model_path: str,

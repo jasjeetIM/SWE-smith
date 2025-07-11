@@ -39,7 +39,7 @@ N_HOURS = int(os.environ.get("N_HOURS", 10))
     # gpu=modal.gpu.A100(count=N_GPU, size="80GB"),
     gpu=f"H100:{N_GPUS}",
     volumes={
-        "weights": trained_model_volume,
+        "/weights": trained_model_volume,
         "/data": dataset_volume,
     },
     timeout=N_HOURS * HOURS,

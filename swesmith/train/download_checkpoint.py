@@ -27,7 +27,7 @@ HOURS = 60 * MINUTES
 
 
 @app.function(
-    volumes={"weights": model_volume},
+    volumes={"/weights": model_volume},
     image=image,
     timeout=1 * HOURS,
     secrets=[modal.Secret.from_name("john-hf-secret")],

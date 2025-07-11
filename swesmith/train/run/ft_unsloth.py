@@ -45,7 +45,7 @@ app = modal.App("unsloth-sft")
     timeout=24 * HOURS,
     allow_concurrent_inputs=1000,
     volumes={
-        "weights": trained_model_volume,
+        "/weights": trained_model_volume,
         "/data": dataset_volume,
     },
     secrets=[
