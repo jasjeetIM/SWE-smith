@@ -31,6 +31,7 @@ from swesmith.constants import (
     TEST_OUTPUT_START,
 )
 from swesmith.profiles import global_registry
+from unidiff import PatchSet
 
 
 def _apply_patch(
@@ -69,7 +70,7 @@ def run_patch_in_container(
     run_id: str,
     log_dir: Path,
     timeout: int,
-    patch: str | None = None,
+    patches: list[str] | None = None,
     commit: str | None = None,
     f2p_only: bool = False,
     is_gold: bool = False,
@@ -128,12 +129,24 @@ def run_patch_in_container(
                 return logger, False
 
         # If provided, copy patch to container and apply it to codebase
-        if patch is not None:
-            patch_file = Path(log_dir / "patch.diff")
-            patch_file.write_text(patch)
-            logger.info(f"Patch written to {patch_file}, now applying to container...")
-            copy_to_container(container, patch_file, Path(DOCKER_PATCH))
-            _apply_patch(instance_id, container, logger, is_gold)
+        if patches is not None and len(patches) >= 1:
+            for patch in patches:
+                # Revert any changes to those files in the container to ensure a clean state
+                changed_files = " ".join([x.path for x in PatchSet(patch)])
+                container.exec_run(
+                    f"git checkout -- {changed_files}",
+                    workdir=DOCKER_WORKDIR,
+                    user=DOCKER_USER,
+                )
+
+                # Apply the patch inside the container
+                patch_file = Path(log_dir / "patch.diff")
+                patch_file.write_text(patch)
+                logger.info(
+                    f"Patch written to {patch_file}, now applying to container..."
+                )
+                copy_to_container(container, patch_file, Path(DOCKER_PATCH))
+                _apply_patch(instance_id, container, logger, is_gold)
 
         # Copy eval script to container
         eval_file = Path(log_dir / "eval.sh")

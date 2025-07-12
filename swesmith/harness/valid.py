@@ -99,7 +99,7 @@ def run_validation(instance: dict) -> None:
         instance["repo"],
         LOG_DIR_RUN_VALIDATION,
         rp.timeout,
-        patch=instance[KEY_PATCH],
+        patches=[instance[KEY_PATCH]],
     )
 
     if timed_out:

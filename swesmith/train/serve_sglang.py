@@ -11,8 +11,6 @@ import shutil
 import subprocess
 import sys
 
-from swesmith.constants import SGLANG_API_KEY
-
 sglang_image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install("sglang[all]==0.3.6")
@@ -65,7 +63,7 @@ def run_server(
     )
 
     with modal.forward(3000, unencrypted=True) as tunnel:
-        command = f"python -m sglang.launch_server --model-path {model_path} --tokenizer-path {tokenizer_path} --tp-size {n_gpus} --port 3000 --host 0.0.0.0 --served-model-name {served_model_name} --context-length {context_length} --api-key {SGLANG_API_KEY}"
+        command = f"python -m sglang.launch_server --model-path {model_path} --tokenizer-path {tokenizer_path} --tp-size {n_gpus} --port 3000 --host 0.0.0.0 --served-model-name {served_model_name} --context-length {context_length} --api-key swesmith"
         print("Server listening at", tunnel.url)
         subprocess.run(
             command.split(),

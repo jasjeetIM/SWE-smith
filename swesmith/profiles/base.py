@@ -126,6 +126,12 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                 stderr=subprocess.STDOUT,
             )
 
+    def push_image(self, rebuild_image: bool = False):
+        if rebuild_image:
+            subprocess.run(f"docker rmi {self.image_name}", shell=True)
+            self.build_image()
+        subprocess.run(f"docker push {self.image_name}", shell=True)
+
     def clone(self, dest: str | None = None) -> tuple[str, bool]:
         """Clone repository locally"""
         if not self._mirror_exists():

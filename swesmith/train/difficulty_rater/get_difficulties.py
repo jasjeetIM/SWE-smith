@@ -16,7 +16,6 @@ import os
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from swebench.harness.constants import KEY_INSTANCE_ID
-from swesmith.constants import SGLANG_API_KEY
 from swesmith.train.difficulty_rater.create_datasets import (
     PROMPT_SYSTEM,
     PROMPT_INSTANCE,
@@ -50,7 +49,7 @@ def process_instance(client, instance):
 
 
 def main(base_url, dataset_path, overwrite=False):
-    client = openai.Client(base_url=f"{base_url}/v1", api_key=SGLANG_API_KEY)
+    client = openai.Client(base_url=f"{base_url}/v1", api_key="swesmith")
 
     dataset = None
     if dataset_path.endswith(".json"):
