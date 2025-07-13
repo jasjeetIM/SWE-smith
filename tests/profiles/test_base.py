@@ -22,11 +22,6 @@ def clear_singleton_cache():
     yield
 
 
-@pytest.fixture(autouse=True)
-def clear_test_paths_cache():
-    RepoProfile._test_paths_cache.clear()
-
-
 def test_registry_keys_and_lookup():
     # Should have many keys after importing profiles
     keys = global_registry.keys()
