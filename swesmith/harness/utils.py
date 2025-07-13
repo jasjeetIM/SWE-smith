@@ -131,6 +131,11 @@ def run_patch_in_container(
         # If provided, copy patch to container and apply it to codebase
         if patches is not None and len(patches) >= 1:
             for patch in patches:
+                if len(patch.strip()) == 0:
+                    logger.info("Skipping patch apply (patch is empty)")
+                    continue
+                logger.info("Applying patch to container for...")
+
                 # Revert any changes to those files in the container to ensure a clean state
                 changed_files = " ".join([x.path for x in PatchSet(patch)])
                 container.exec_run(

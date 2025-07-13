@@ -305,7 +305,7 @@ def _main(
             subprocess.run(cmd, cwd=rp.repo_name, **SUBPROCESS_ARGS)
 
         # Create test patch by removing F2P test files
-        f2p_test_files = rp._get_f2p_test_files(task_instance)
+        f2p_test_files = rp.get_f2p_test_files(task_instance)
         if f2p_test_files:
             # Remove the test files
             for test_file in f2p_test_files:

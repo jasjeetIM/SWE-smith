@@ -83,8 +83,8 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     # this design may have to be updated.
     _lock: Lock = field(default_factory=Lock, init=False, repr=False, compare=False)
 
-    # Class-level cache for test paths, keyed by repo_name
-    _test_paths_cache = {}
+    # Class-level cache for test paths (None if not cached yet)
+    _test_paths_cache = None
 
     @abstractmethod
     def log_parser(self, log: str) -> dict[str, str]:
@@ -230,13 +230,10 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
 
     def _get_cached_test_paths(self) -> list[Path]:
         """Clone the repo, get all testing file paths relative to the repo directory, then clean up."""
-        # Use repo_name as cache key since it's unique per repository profile
-        cache_key = self.repo_name
-
-        if cache_key not in self._test_paths_cache:
+        if self._test_paths_cache is None:
             with self._lock:  # Only one process enters this block at a time
                 dir_path, cloned = self.clone()
-                test_paths = [
+                self._test_paths_cache = [
                     Path(os.path.relpath(os.path.join(root, file), self.repo_name))
                     for root, _, files in os.walk(Path(self.repo_name).resolve())
                     for file in files
@@ -244,11 +241,10 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                 ]
                 if cloned:
                     shutil.rmtree(dir_path)
-                self._test_paths_cache[cache_key] = test_paths
 
-        return self._test_paths_cache[cache_key]
+        return self._test_paths_cache
 
-    def _get_f2p_test_files(self, instance: dict) -> list[str]:
+    def get_f2p_test_files(self, instance: dict) -> list[str]:
         """Given an instance, return files corresponding to F2P tests"""
         return []
 
@@ -261,7 +257,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
         test_command = self.test_cmd
 
         if f2p_only:
-            f2p_files = self._get_f2p_test_files(instance)
+            f2p_files = self.get_f2p_test_files(instance)
             test_command += f" {' '.join(f2p_files)}"
             return test_command, f2p_files
 

@@ -1,7 +1,9 @@
+import os
 import re
+import shutil
 
 from dataclasses import dataclass, field
-from swebench.harness.constants import TestStatus
+from swebench.harness.constants import FAIL_TO_PASS, TestStatus
 from swesmith.profiles.base import RepoProfile, global_registry
 
 
@@ -16,6 +18,9 @@ class GoProfile(RepoProfile):
 
     exts: list[str] = field(default_factory=lambda: [".go"])
     test_cmd: str = "go test -v ./..."
+    _test_name_to_files_cache: dict[str, set[str]] = field(
+        default=None, init=False, repr=False
+    )
 
     @property
     def dockerfile(self):
@@ -25,6 +30,58 @@ WORKDIR /testbed
 RUN go mod tidy
 RUN go test -v -count=1 ./... || true
 """
+
+    def _build_test_name_to_files_map(self) -> dict[str, set[str]]:
+        """Build a mapping from test names to the files that contain them."""
+        dest, cloned = self.clone()
+        test_name_to_files = {}
+
+        # Scan all test files once
+        for dirpath, _, filenames in os.walk(dest):
+            for fname in filenames:
+                if not fname.endswith("_test.go"):
+                    continue
+
+                full_path = os.path.join(dirpath, fname)
+                # Convert to relative path from repository root
+                relative_path = os.path.relpath(full_path, dest)
+
+                try:
+                    with open(full_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            # Look for function definitions that are tests
+                            match = re.match(r"^\s*func\s+(\w+)\b", line.strip())
+                            if match:
+                                test_name = match.group(1)
+                                if test_name not in test_name_to_files:
+                                    test_name_to_files[test_name] = set()
+                                test_name_to_files[test_name].add(relative_path)
+                except (OSError, UnicodeDecodeError):
+                    # skip files we can't read
+                    continue
+
+        if cloned:
+            shutil.rmtree(dest)
+        return test_name_to_files
+
+    def get_f2p_test_files(self, instance: dict) -> list[str]:
+        test_names = instance[FAIL_TO_PASS]
+        test_files = set()
+
+        # Lazy load the cache if needed
+        if self._test_name_to_files_cache is None:
+            with self._lock:  # Only one process enters this block at a time
+                if self._test_name_to_files_cache is None:  # Double-check pattern
+                    self._test_name_to_files_cache = (
+                        self._build_test_name_to_files_map()
+                    )
+
+        # Look up each test name in the cache
+        for test_name in test_names:
+            if test_name in self._test_name_to_files_cache:
+                test_files.update(self._test_name_to_files_cache[test_name])
+
+        return list(test_files)
 
     def log_parser(self, log: str) -> dict[str, str]:
         """Parser for test logs generated with 'go test'"""
