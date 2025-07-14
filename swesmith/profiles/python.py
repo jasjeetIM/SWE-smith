@@ -544,6 +544,16 @@ class MidoA0158ff9(PythonProfile):
         "pytest --disable-warnings --color=no --tb=no --verbose -rs -c /dev/null"
     )
 
+    def get_f2p_test_files(self, instance: dict) -> list[str]:
+        test_files = super().get_f2p_test_files(instance)
+        prefix = "../dev/"
+        remove_prefix = (
+            lambda test_file: test_file[len(prefix) :]
+            if test_file.startswith(prefix)
+            else test_file
+        )
+        return sorted(list(set(map(remove_prefix, test_files))))
+
 
 @dataclass
 class MistuneBf54ef67(PythonProfile):
@@ -785,6 +795,9 @@ class PythonSlugify872b3750(PythonProfile):
         "python test.py --verbose"
     )
 
+    def get_f2p_test_files(self, instance: dict) -> list[str]:
+        return ["test.py"]
+
     def log_parser(self, log: str) -> dict[str, str]:
         test_status_map = {}
         pattern = r"^([a-zA-Z0-9_\-,\.\s\(\)']+)\s\.{3}\s"
@@ -926,9 +939,16 @@ class SunpyF8edfd5c(PythonProfile):
     owner: str = "sunpy"
     repo: str = "sunpy"
     commit: str = "f8edfd5c4be873fbd28dec4583e7f737a045f546"
-    python_version = "3.11"
+    python_version: str = "3.11"
     install_cmds: list = field(default_factory=lambda: ['pip install -e ".[dev]"'])
     min_testing: bool = True
+
+
+@dataclass
+class Dspy651a4c71(PythonProfile):
+    owner: str = "stanfordnlp"
+    repo: str = "dspy"
+    commit: str = "651a4c715ecc6c5e68b68d22172768f0b20f2eea"
 
 
 @dataclass
@@ -1010,6 +1030,15 @@ class TornadoD5ac65c1(PythonProfile):
         f"conda activate {ENV_NAME}; "
         "python -m tornado.test --verbose"
     )
+
+    def get_f2p_test_files(self, instance: dict) -> list[str]:
+        test_files = set()
+        for f2p_test in instance[FAIL_TO_PASS]:
+            is_match = re.search(r"\s\((.*)\)", f2p_test)
+            if is_match:
+                test_path = is_match.group(1)
+                test_files.add("/".join(test_path.split(".")[:-1]) + ".py")
+        return list(test_files)
 
     def log_parser(self, log: str) -> dict[str, str]:
         test_status_map = {}
