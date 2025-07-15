@@ -46,7 +46,6 @@ from swesmith.constants import (
     GIT_APPLY_CMDS,
     KEY_IMAGE_NAME,
     KEY_PATCH,
-    KEY_PATCH_TEST,
     KEY_TIMED_OUT,
     LOG_DIR_TASKS,
     REF_SUFFIX,
@@ -313,18 +312,7 @@ def _main(
                 if os.path.exists(test_file_path):
                     os.remove(test_file_path)
                     if verbose:
-                        print(f"[{subfolder}] Removed test file: {test_file}")
-
-            # Create diff of the removal
-            task_instance[KEY_PATCH_TEST] = subprocess.run(
-                "git diff HEAD",
-                capture_output=True,
-                check=True,
-                cwd=rp.repo_name,
-                shell=True,
-            ).stdout.decode()
-            if verbose:
-                print(f"[{subfolder}] Removed F2P test file(s)")
+                        print(f"[{subfolder}] Removed F2P test file: {test_file}")
 
             # Add and commit removal
             cmds = [
@@ -335,10 +323,10 @@ def _main(
                 if debug_subprocess:
                     print(f"[{subfolder}] {cmd}")
                 subprocess.run(cmd, cwd=rp.repo_name, **SUBPROCESS_ARGS)
-        else:
-            task_instance[KEY_PATCH_TEST] = ""
             if verbose:
-                print(f"[{subfolder}] No test files to remove")
+                print(f"[{subfolder}] Commit F2P test file(s) removal")
+        elif verbose:
+            print(f"[{subfolder}] No test files to remove")
 
         cmds = [
             f"git push origin {subfolder}",

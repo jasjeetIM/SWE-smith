@@ -70,7 +70,7 @@ def run_patch_in_container(
     run_id: str,
     log_dir: Path,
     timeout: int,
-    patches: list[str] | None = None,
+    patch: str | None = None,
     commit: str | None = None,
     f2p_only: bool = False,
     is_gold: bool = False,
@@ -91,9 +91,10 @@ def run_patch_in_container(
     client = docker.from_env()
     instance_id = instance[KEY_INSTANCE_ID]
     rp = global_registry.get_from_inst(instance)
+    is_eval = log_dir == RUN_EVALUATION_LOG_DIR
     try:
         container_type = None
-        if log_dir == RUN_EVALUATION_LOG_DIR:
+        if is_eval:
             container_type = "eval"
         elif log_dir == LOG_DIR_RUN_VALIDATION:
             container_type = "val"
@@ -127,31 +128,43 @@ def run_patch_in_container(
             if val.exit_code != 0:
                 logger.info(f"CHECKOUT FAILED: {val.output.decode(UTF8)}")
                 return logger, False
+            if is_eval:
+                val = container.exec_run(
+                    "git checkout HEAD~1", workdir=DOCKER_WORKDIR, user=DOCKER_USER
+                )
+                if val.exit_code != 0:
+                    logger.info(
+                        f"CHECKOUT TO BUG STAGE FAILED: {val.output.decode(UTF8)}"
+                    )
+                    return logger, False
 
         # If provided, copy patch to container and apply it to codebase
-        if patches is not None and len(patches) >= 1:
-            for patch in patches:
-                if len(patch.strip()) == 0:
-                    logger.info("Skipping patch apply (patch is empty)")
-                    continue
-                logger.info("Applying patch to container for...")
+        if patch is not None and len(patch) >= 1:
+            logger.info("Applying patch to container...")
 
-                # Revert any changes to those files in the container to ensure a clean state
-                changed_files = " ".join([x.path for x in PatchSet(patch)])
+            # Revert any changes to those files in the container to ensure a clean state
+            changed_files = " ".join([x.path for x in PatchSet(patch)])
+            container.exec_run(
+                f"git checkout -- {changed_files}",
+                workdir=DOCKER_WORKDIR,
+                user=DOCKER_USER,
+            )
+
+            # Apply the patch inside the container
+            patch_file = Path(log_dir / "patch.diff")
+            patch_file.write_text(patch)
+            logger.info(f"Patch written to {patch_file}, now applying to container...")
+            copy_to_container(container, patch_file, Path(DOCKER_PATCH))
+            _apply_patch(instance_id, container, logger, is_gold)
+
+            # Remove any testing related changes
+            if is_eval:
+                test_files = " ".join(rp.get_f2p_test_files(instance))
                 container.exec_run(
-                    f"git checkout -- {changed_files}",
+                    f"git checkout -- {test_files}",
                     workdir=DOCKER_WORKDIR,
                     user=DOCKER_USER,
                 )
-
-                # Apply the patch inside the container
-                patch_file = Path(log_dir / "patch.diff")
-                patch_file.write_text(patch)
-                logger.info(
-                    f"Patch written to {patch_file}, now applying to container..."
-                )
-                copy_to_container(container, patch_file, Path(DOCKER_PATCH))
-                _apply_patch(instance_id, container, logger, is_gold)
 
         # Copy eval script to container
         eval_file = Path(log_dir / "eval.sh")
