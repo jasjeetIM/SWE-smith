@@ -5,13 +5,11 @@ that can be run with SWE-agent. Each instances is of the form:
 {
     "instance_id":
     "repo":
-    "base_commit":
     "patch":
     "test_patch":
     "problem_statement":
     "FAIL_TO_PASS":
     "PASS_TO_PASS":
-    "created_at":
     "version":
 }
 
@@ -34,7 +32,6 @@ import os
 import shutil
 import subprocess
 
-from datetime import datetime
 from pathlib import Path
 from swebench.harness.constants import (
     FAIL_TO_PASS,
@@ -102,7 +99,6 @@ def check_if_branch_exists(
     verbose: bool,
 ):
     branch_exists = None
-    branch_commit = None
     try:
         subprocess.run(f"git checkout {subfolder}", cwd=repo_name, **SUBPROCESS_ARGS)
         if override_branch:
@@ -116,23 +112,13 @@ def check_if_branch_exists(
                 print(f"[{subfolder}] Overriding existing branch")
             branch_exists = False
         else:
-            branch_commit = (
-                subprocess.run(
-                    "git rev-parse HEAD",
-                    cwd=repo_name,
-                    capture_output=True,
-                    **SUBPROCESS_ARGS,
-                )
-                .stdout.decode()
-                .strip()
-            )
             branch_exists = True
         subprocess.run(f"git checkout {main_branch}", cwd=repo_name, **SUBPROCESS_ARGS)
         subprocess.run(f"git branch -D {subfolder}", cwd=repo_name, **SUBPROCESS_ARGS)
     except Exception:
         branch_exists = False
         pass
-    return branch_exists, branch_commit
+    return branch_exists
 
 
 def _main(
@@ -231,7 +217,6 @@ def _main(
             KEY_PATCH: patch_content,
             FAIL_TO_PASS: results[FAIL_TO_PASS],
             PASS_TO_PASS: results[PASS_TO_PASS],
-            "created_at": datetime.now().isoformat(),
         }
         rp = global_registry.get_from_inst(task_instance)
         task_instance[KEY_IMAGE_NAME] = rp.image_name
@@ -253,14 +238,13 @@ def _main(
         )
 
         # Check if branch already created for this problem
-        branch_exists, branch_commit = check_if_branch_exists(
+        branch_exists = check_if_branch_exists(
             rp.repo_name, subfolder, main_branch, override_branch, verbose
         )
         if branch_exists:
-            task_instance["base_commit"] = branch_commit
             task_instances.append(task_instance)
             stats = skip_print(
-                f"{subfolder}: Already exists @ branch `{subfolder}` {branch_commit[:8]}",
+                f"{subfolder}: Branch `{subfolder}` exists",
                 pbar,
                 stats,
                 verbose,
