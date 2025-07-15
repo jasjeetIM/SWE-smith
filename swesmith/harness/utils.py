@@ -129,6 +129,11 @@ def run_patch_in_container(
                 logger.info(f"CHECKOUT FAILED: {val.output.decode(UTF8)}")
                 return logger, False
             if is_eval:
+                # NOTE: Key assumption we make is that each branch has two commits
+                # 1. Bug commit
+                # 2. F2P Test File(s) removal commit (on top of 1).
+                # The `HEAD~1` corresponds to reverting the branch to (1), which
+                # effectively brings the tests back into the codebase.
                 val = container.exec_run(
                     "git checkout HEAD~1", workdir=DOCKER_WORKDIR, user=DOCKER_USER
                 )
@@ -157,8 +162,8 @@ def run_patch_in_container(
             copy_to_container(container, patch_file, Path(DOCKER_PATCH))
             _apply_patch(instance_id, container, logger, is_gold)
 
-            # Remove any testing related changes
             if is_eval:
+                # For evaluation, removes any changes to F2P test related files.
                 test_files = " ".join(rp.get_f2p_test_files(instance))
                 container.exec_run(
                     f"git checkout -- {test_files}",
