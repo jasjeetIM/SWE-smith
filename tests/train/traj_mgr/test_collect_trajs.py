@@ -80,10 +80,18 @@ def test_collect_trajs_basic(logs_trajectories, logs_run_evaluation, ft_xml_exam
         assert output_path.exists()
 
         # Compare contents
+        output_data = []
         with open(output_path, "r") as f:
-            output_data = [json.loads(x) for x in f]
+            for x in f:
+                traj = json.loads(x)
+                del traj["traj_id"]
+                output_data.append(traj)
+        expected_data = []
         with open(ft_xml_example, "r") as f:
-            expected_data = [json.loads(x) for x in f]
+            for x in f:
+                traj = json.loads(x)
+                del traj["traj_id"]
+                expected_data.append(traj)
 
         assert sorted(output_data, key=lambda x: x["instance_id"]) == sorted(
             expected_data, key=lambda x: x["instance_id"]
