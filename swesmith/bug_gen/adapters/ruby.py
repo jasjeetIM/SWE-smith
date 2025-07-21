@@ -1,7 +1,7 @@
 import re
 
 from swesmith.constants import TODO_REWRITE, CodeEntity
-from tree_sitter import Language, Parser
+from tree_sitter import Language, Parser, Query, QueryCursor
 import tree_sitter_ruby as tsr
 import warnings
 
@@ -11,13 +11,14 @@ RUBY_LANGUAGE = Language(tsr.language())
 class RubyEntity(CodeEntity):
     @property
     def name(self) -> str:
-        query = RUBY_LANGUAGE.query(
+        query = Query(
+            RUBY_LANGUAGE,
             """
             (method name: (identifier) @method.name)
             (singleton_method name: (identifier) @method.name)
-            """
+            """,
         )
-        captures = query.captures(self.node)
+        captures = QueryCursor(query).captures(self.node)
         if "method.name" in captures:
             name_nodes = captures["method.name"]
             if name_nodes:
@@ -26,14 +27,15 @@ class RubyEntity(CodeEntity):
 
     @property
     def signature(self) -> str:
-        query = RUBY_LANGUAGE.query(
+        query = Query(
+            RUBY_LANGUAGE,
             """
             (method body: (body_statement) @method.body)
             (singleton_method body: (body_statement) @method.body)
-            """
+            """,
         )
 
-        captures = query.captures(self.node)
+        captures = QueryCursor(query).captures(self.node)
         if "method.body" in captures:
             body_nodes = captures["method.body"]
             if not body_nodes:
