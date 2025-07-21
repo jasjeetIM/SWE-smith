@@ -2,7 +2,7 @@ import re
 import warnings
 
 from swesmith.constants import CodeEntity, TODO_REWRITE
-from tree_sitter import Language, Parser, Query
+from tree_sitter import Language, Parser, Query, QueryCursor
 import tree_sitter_java as tsjava
 
 JAVA_LANGUAGE = Language(tsjava.language())
@@ -36,7 +36,7 @@ class JavaEntity(CodeEntity):
             ]
             """.strip(),
         )
-        matches = body_query.matches(self.node)
+        matches = QueryCursor(body_query).matches(self.node)
         if matches:
             body_node = matches[0][1]["body"][0]
             signature = (
@@ -57,7 +57,7 @@ class JavaEntity(CodeEntity):
     @staticmethod
     def _extract_text_from_first_match(query, node, capture_name: str) -> str | None:
         """Extract text from tree-sitter query matches with None fallback."""
-        matches = query.matches(node)
+        matches = QueryCursor(query).matches(node)
         return matches[0][1][capture_name][0].text.decode("utf-8") if matches else None
 
 

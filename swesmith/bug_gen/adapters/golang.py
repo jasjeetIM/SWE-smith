@@ -1,7 +1,7 @@
 import re
 
 from swesmith.constants import TODO_REWRITE, CodeEntity
-from tree_sitter import Language, Parser, Query
+from tree_sitter import Language, Parser, Query, QueryCursor
 import tree_sitter_go as tsgo
 import warnings
 
@@ -57,7 +57,7 @@ class GoEntity(CodeEntity):
             ]
             """.strip(),
         )
-        matches = body_query.matches(self.node)
+        matches = QueryCursor(body_query).matches(self.node)
         if matches:
             body_node = matches[0][1]["body"][0]
             body_start_byte = body_node.start_byte - self.node.start_byte
@@ -102,7 +102,7 @@ class GoEntity(CodeEntity):
     @staticmethod
     def _extract_text_from_first_match(query, node, capture_name: str) -> str | None:
         """Extract text from tree-sitter query matches with None fallback."""
-        matches = query.matches(node)
+        matches = QueryCursor(query).matches(node)
         return matches[0][1][capture_name][0].text.decode("utf-8") if matches else None
 
 
