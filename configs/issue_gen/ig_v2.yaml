@@ -1,4 +1,4 @@
-settings: {}
+model: openai/gpt-4o
 system: |-
   You are a software engineer helping to create a realistic dataset of synthetic GitHub issues.
   

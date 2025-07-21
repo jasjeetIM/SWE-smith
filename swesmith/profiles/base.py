@@ -54,9 +54,6 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     installation and testing patterns while maintaining a consistent API.
     """
 
-    owner: str = ""
-    repo: str = ""
-    commit: str = ""
     org_dh: str = ORG_NAME_DH
     org_gh: str = ORG_NAME_GH
     arch: str = "x86_64" if platform.machine() not in {"aarch64", "arm64"} else "arm64"
@@ -64,7 +61,6 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     exts: list[str] = field(default_factory=lambda: SUPPORTED_EXTS)
 
     # Install + Test specifications
-    test_cmd: str = ""
     timeout: int = 90  # timeout (sec) for running test suite for a single instance
     timeout_ref: int = 900  # timeout for running entire test suite
 
@@ -84,13 +80,11 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     _lock: Lock = field(default_factory=Lock, init=False, repr=False, compare=False)
 
     # Class-level caches
-    _cache_test_paths = None  # For test paths
+    _cache_test_paths = None
     _cache_branches = None
+    _cache_mirror_exists = None
 
-    @abstractmethod
-    def log_parser(self, log: str) -> dict[str, str]:
-        """Parse test output logs and extract relevant information."""
-        pass
+    ### START: Properties, Methods that *do not* require (re-)implementation ###
 
     @property
     def image_name(self) -> str:
@@ -130,13 +124,31 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
             ]
         return self._cache_branches
 
+    def _get_cached_test_paths(self) -> list[Path]:
+        """Clone the repo, get all testing file paths relative to the repo directory, then clean up."""
+        if self._cache_test_paths is None:
+            with self._lock:  # Only one process enters this block at a time
+                dir_path, cloned = self.clone()
+                self._cache_test_paths = [
+                    Path(os.path.relpath(os.path.join(root, file), self.repo_name))
+                    for root, _, files in os.walk(Path(self.repo_name).resolve())
+                    for file in files
+                    if self._is_test_path(root, file)
+                ]
+                if cloned:
+                    shutil.rmtree(dir_path)
+
+        return self._cache_test_paths
+
     def _mirror_exists(self):
         """Check if mirror repository exists under organization"""
-        try:
-            api.repos.get(owner=self.org_gh, repo=self.repo_name)
-            return True
-        except:
-            return False
+        if self._cache_mirror_exists is not True:
+            try:
+                api.repos.get(owner=self.org_gh, repo=self.repo_name)
+                self._cache_mirror_exists = True
+            except:
+                self._cache_mirror_exists = False
+        return self._cache_mirror_exists
 
     def build_image(self):
         """Build a Docker image (execution environment) for this repository profile."""
@@ -152,36 +164,6 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
             )
-
-    def push_image(self, rebuild_image: bool = False):
-        if rebuild_image:
-            subprocess.run(f"docker rmi {self.image_name}", shell=True)
-            self.build_image()
-        subprocess.run(f"docker push {self.image_name}", shell=True)
-
-    def clone(self, dest: str | None = None) -> tuple[str, bool]:
-        """Clone repository locally"""
-        if not self._mirror_exists():
-            raise ValueError(
-                "Mirror clone repo must be created first (call .create_mirror)"
-            )
-        dest = self.repo_name if not dest else dest
-        if not os.path.exists(dest):
-            clone_cmd = (
-                f"git clone git@github.com:{self.mirror_name}.git"
-                if dest is None
-                else f"git clone git@github.com:{self.mirror_name}.git {dest}"
-            )
-            subprocess.run(
-                clone_cmd,
-                check=True,
-                shell=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            return dest, True
-        else:
-            return dest, False
 
     def create_mirror(self):
         """Create a mirror of this repository at the specified commit."""
@@ -244,6 +226,85 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
             stderr=subprocess.DEVNULL,
         )
 
+    def clone(self, dest: str | None = None) -> tuple[str, bool]:
+        """Clone repository locally"""
+        if not self._mirror_exists():
+            raise ValueError(
+                "Mirror clone repo must be created first (call .create_mirror)"
+            )
+        dest = self.repo_name if not dest else dest
+        if not os.path.exists(dest):
+            clone_cmd = (
+                f"git clone git@github.com:{self.mirror_name}.git"
+                if dest is None
+                else f"git clone git@github.com:{self.mirror_name}.git {dest}"
+            )
+            subprocess.run(
+                clone_cmd,
+                check=True,
+                shell=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return dest, True
+        else:
+            return dest, False
+
+    def extract_entities(
+        self,
+        dirs_exclude: list[str] = [],
+        dirs_include: list[str] = [],
+        exclude_tests: bool = True,
+        max_entities: int = -1,
+    ) -> list[CodeEntity]:
+        """
+        Extracts entities (functions, classes, etc.) from Python files in a directory.
+        Args:
+            directory_path (str): Path to the directory to scan.
+            exclude_tests (bool): Whether to exclude test files and directories.
+        Returns:
+            List[CodeEntity]: List of CodeEntity objects containing entity information.
+        """
+        dir_path, cloned = self.clone()
+        entities = []
+        for root, _, files in os.walk(dir_path):
+            for file in files:
+                if exclude_tests and self._is_test_path(root, file):
+                    continue
+                if dirs_exclude and any([x in root for x in dirs_exclude]):
+                    continue
+                if dirs_include and not any([x in root for x in dirs_include]):
+                    continue
+
+                file_path = os.path.join(root, file)
+
+                try:
+                    open(file_path, "r", encoding="utf-8").close()
+                except:
+                    continue
+
+                file_ext = Path(file_path).suffix
+                if file_ext not in self.exts:
+                    continue
+                get_entities_from_file[file_ext](entities, file_path, max_entities)
+        if cloned:
+            shutil.rmtree(dir_path)
+        return entities
+
+    def pull_image(self):
+        """Pull the Docker image for this repository profile."""
+        subprocess.run(f"docker pull {self.image_name}", shell=True)
+
+    def push_image(self, rebuild_image: bool = False):
+        if rebuild_image:
+            subprocess.run(f"docker rmi {self.image_name}", shell=True)
+            self.build_image()
+        subprocess.run(f"docker push {self.image_name}", shell=True)
+
+    ### END: Properties, Methods that *do not* require (re-)implementation ###
+
+    ### START: Properties, Methods that *may* require (re-)implementation ###
+
     def _is_test_path(self, root: str, file: str) -> bool:
         """Check whether the file path corresponds to a testing related file"""
         if len(self.exts) > 1 and not any([file.endswith(ext) for ext in self.exts]):
@@ -254,22 +315,6 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
         if any([x in dirs for x in ["tests", "test", "specs"]]):
             return True
         return False
-
-    def _get_cached_test_paths(self) -> list[Path]:
-        """Clone the repo, get all testing file paths relative to the repo directory, then clean up."""
-        if self._cache_test_paths is None:
-            with self._lock:  # Only one process enters this block at a time
-                dir_path, cloned = self.clone()
-                self._cache_test_paths = [
-                    Path(os.path.relpath(os.path.join(root, file), self.repo_name))
-                    for root, _, files in os.walk(Path(self.repo_name).resolve())
-                    for file in files
-                    if self._is_test_path(root, file)
-                ]
-                if cloned:
-                    shutil.rmtree(dir_path)
-
-        return self._cache_test_paths
 
     def get_test_files(self, instance: dict) -> tuple[list[str], list[str]]:
         """Given an instance, return files corresponding to F2P, P2P test files"""
@@ -366,46 +411,26 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
 
         return test_command, rv
 
-    def extract_entities(
-        self,
-        dirs_exclude: list[str] = [],
-        dirs_include: list[str] = [],
-        exclude_tests: bool = True,
-        max_entities: int = -1,
-    ) -> list[CodeEntity]:
-        """
-        Extracts entities (functions, classes, etc.) from Python files in a directory.
-        Args:
-            directory_path (str): Path to the directory to scan.
-            exclude_tests (bool): Whether to exclude test files and directories.
-        Returns:
-            List[CodeEntity]: List of CodeEntity objects containing entity information.
-        """
-        dir_path, cloned = self.clone()
-        entities = []
-        for root, _, files in os.walk(dir_path):
-            for file in files:
-                if exclude_tests and self._is_test_path(root, file):
-                    continue
-                if dirs_exclude and any([x in root for x in dirs_exclude]):
-                    continue
-                if dirs_include and not any([x in root for x in dirs_include]):
-                    continue
+    ### END: Properties, Methods that *may* require (re-)implementation ###
 
-                file_path = os.path.join(root, file)
+    ### START: Properties, Methods that require implementation ###
 
-                try:
-                    open(file_path, "r", encoding="utf-8").close()
-                except:
-                    continue
+    owner: str = ""
+    repo: str = ""
+    commit: str = ""
+    test_cmd: str = ""
 
-                file_ext = Path(file_path).suffix
-                if file_ext not in self.exts:
-                    continue
-                get_entities_from_file[file_ext](entities, file_path, max_entities)
-        if cloned:
-            shutil.rmtree(dir_path)
-        return entities
+    @abstractmethod
+    def log_parser(self, log: str) -> dict[str, str]:
+        """Parse test output logs and extract relevant information."""
+        pass
+
+    @property
+    def dockerfile(self) -> str:
+        """Return the Dockerfile path for this repository profile."""
+        pass
+
+    ### END: Properties, Methods that require implementation ###
 
 
 ### MARK: Profile Registry ###

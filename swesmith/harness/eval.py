@@ -9,7 +9,6 @@ Usage: python -m swesmith.harness.eval \
 """
 
 import argparse
-import fnmatch
 import json
 import os
 
@@ -26,34 +25,8 @@ from swebench.harness.docker_build import close_logger
 from swebench.harness.utils import run_threadpool
 from swesmith.constants import HF_DATASET, KEY_PATCH, KEY_TIMED_OUT
 from swesmith.harness.grading import get_eval_report
-from swesmith.harness.utils import run_patch_in_container
+from swesmith.harness.utils import matches_instance_filter, run_patch_in_container
 from swesmith.profiles import global_registry
-
-
-def matches_instance_filter(instance_id: str, instance_ids: list[str] | None) -> bool:
-    """
-    Check if an instance_id matches the filtering criteria.
-
-    Args:
-        instance_id: The instance ID to check
-        instance_ids: List of instance IDs or patterns to match against
-
-    Returns:
-        True if the instance should be included, False otherwise
-    """
-    if instance_ids is None:
-        return True
-
-    for filter_item in instance_ids:
-        # Check for exact match first
-        if instance_id == filter_item:
-            return True
-
-        # Check for pattern match (supports * and ? wildcards)
-        if fnmatch.fnmatch(instance_id, filter_item):
-            return True
-
-    return False
 
 
 def run_evaluation(
