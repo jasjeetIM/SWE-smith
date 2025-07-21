@@ -83,6 +83,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     _cache_test_paths = None
     _cache_branches = None
     _cache_mirror_exists = None
+    _cache_image_exists = None
 
     ### START: Properties, Methods that *do not* require (re-)implementation ###
 
@@ -164,6 +165,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
             )
+        self._cache_image_exists = True
 
     def create_mirror(self):
         """Create a mirror of this repository at the specified commit."""
@@ -293,12 +295,35 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
 
     def pull_image(self):
         """Pull the Docker image for this repository profile."""
-        subprocess.run(f"docker pull {self.image_name}", shell=True)
+        if self._cache_image_exists is True:
+            return
+        try:
+            subprocess.run(
+                f"docker image inspect {self.image_name}",
+                shell=True,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            # Image exists locally, no need to pull
+        except subprocess.CalledProcessError:
+            # Image doesn't exist locally, try to pull it
+            try:
+                subprocess.run(f"docker pull {self.image_name}", shell=True, check=True)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"Failed to pull Docker image {self.image_name}: {e}"
+                )
+
+        self._cache_image_exists = True
 
     def push_image(self, rebuild_image: bool = False):
         if rebuild_image:
             subprocess.run(f"docker rmi {self.image_name}", shell=True)
             self.build_image()
+        assert self._cache_image_exists is True, (
+            "Image must be built or pulled before pushing"
+        )
         subprocess.run(f"docker push {self.image_name}", shell=True)
 
     ### END: Properties, Methods that *do not* require (re-)implementation ###

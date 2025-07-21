@@ -134,6 +134,7 @@ def run_patch_in_container(
         logger = setup_logger(container_name, log_file)
 
         # Start docker container
+        rp.pull_image()
         container = client.containers.create(
             image=rp.image_name,
             name=container_name,
