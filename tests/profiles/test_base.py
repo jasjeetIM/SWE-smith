@@ -277,6 +277,9 @@ def test_mirror_exists():
             owner=repo_profile.org_gh, repo=repo_profile.repo_name
         )
 
+    # Reset cache for the second test
+    repo_profile._cache_mirror_exists = None
+
     # Test when mirror does not exist (api.repos.get raises Exception)
     with patch(
         "swesmith.profiles.base.api.repos.get", side_effect=Exception("not found")
