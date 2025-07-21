@@ -1,4 +1,5 @@
 import docker
+import fnmatch
 import traceback
 
 from docker.models.containers import Container
@@ -32,6 +33,32 @@ from swesmith.constants import (
 )
 from swesmith.profiles import global_registry
 from unidiff import PatchSet
+
+
+def matches_instance_filter(instance_id: str, instance_ids: list[str] | None) -> bool:
+    """
+    Check if an instance_id matches the filtering criteria.
+
+    Args:
+        instance_id: The instance ID to check
+        instance_ids: List of instance IDs or patterns to match against
+
+    Returns:
+        True if the instance should be included, False otherwise
+    """
+    if instance_ids is None:
+        return True
+
+    for filter_item in instance_ids:
+        # Check for exact match first
+        if instance_id == filter_item:
+            return True
+
+        # Check for pattern match (supports * and ? wildcards)
+        if fnmatch.fnmatch(instance_id, filter_item):
+            return True
+
+    return False
 
 
 def _apply_patch(
