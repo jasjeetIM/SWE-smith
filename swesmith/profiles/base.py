@@ -84,8 +84,9 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     _lock: Lock = field(default_factory=Lock, init=False, repr=False, compare=False)
 
     # Class-level caches
-    _cache_test_paths = None  # For test paths
+    _cache_test_paths = None
     _cache_branches = None
+    _cache_mirror_exists = None
 
     @abstractmethod
     def log_parser(self, log: str) -> dict[str, str]:
@@ -132,11 +133,13 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
 
     def _mirror_exists(self):
         """Check if mirror repository exists under organization"""
-        try:
-            api.repos.get(owner=self.org_gh, repo=self.repo_name)
-            return True
-        except:
-            return False
+        if self._cache_mirror_exists is not True:
+            try:
+                api.repos.get(owner=self.org_gh, repo=self.repo_name)
+                self._cache_mirror_exists = True
+            except:
+                self._cache_mirror_exists = False
+        return self._cache_mirror_exists
 
     def build_image(self):
         """Build a Docker image (execution environment) for this repository profile."""

@@ -147,7 +147,7 @@ class IssueGen:
         metadata = json.loads(output_file.read_text())
         if "responses" not in metadata:
             return True
-        if model not in [r["model"] for r in metadata["responses"]]:
+        if model not in metadata["responses"]:
             return True
         return False
 
@@ -282,32 +282,31 @@ class IssueGen:
             model=self.model, messages=messages, n=self.n_instructions, temperature=0
         )
 
-        metadata["cost"] = (
-            0 if "cost" not in metadata else metadata["cost"]
-        ) + completion_cost(response)
-        # Create new response dict
-        new_response = {
-            "model": self.model,
-            "problem_statements": [
-                choice.message.content  # type: ignore[attr-defined]
-                for choice in response.choices  # type: ignore[attr-defined]
-            ],
-        }
+        cost = completion_cost(response)
+        metadata["cost"] = (0 if "cost" not in metadata else metadata["cost"]) + cost
 
-        # Get existing responses and filter out any with matching model
-        existing_responses = [
-            r for r in metadata.get("responses", []) if r["model"] != self.model
+        # Extract problem statements from response
+        problem_statements = [
+            choice.message.content  # type: ignore[attr-defined]
+            for choice in response.choices  # type: ignore[attr-defined]
         ]
 
-        # Add the new response
-        metadata["responses"] = existing_responses + [new_response]
+        if "responses" not in metadata:
+            # Initialize responses dict if it doesn't exist
+            metadata["responses"] = {}
+        elif self.model in metadata["responses"]:
+            # If responses for this model already exist, prepend them to the new ones
+            problem_statements = metadata["responses"][self.model] + problem_statements
+
+        # Add/update the response for current model
+        metadata["responses"][self.model] = problem_statements
 
         with open(output_file, "w") as f_:
             json.dump(metadata, f_, indent=4)
 
         return {
             "status": "completed",
-            "metadata": {"cost": metadata["cost"]},
+            "cost": cost,
             "repos_to_remove": repos_to_remove,
         }
 
@@ -367,7 +366,7 @@ class IssueGen:
                             stats["⏭️"] += 1
                         elif result["status"] == "completed":
                             stats["✅"] += 1
-                            stats["💰"] += result["metadata"]["cost"]
+                            stats["💰"] += result["cost"]
                             # Collect repos to remove
                             if "repos_to_remove" in result:
                                 all_repos_to_remove.update(result["repos_to_remove"])
