@@ -45,7 +45,7 @@ from swesmith.harness.utils import (
     run_patch_in_container,
 )
 from swesmith.issue_gen.utils import get_test_function
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 
 logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 litellm.suppress_debug_info = True
@@ -152,7 +152,7 @@ class IssueGen:
         return False
 
     def get_test_output(self, instance: dict) -> str:
-        rp = global_registry.get_from_inst(instance)
+        rp = registry.get_from_inst(instance)
 
         # Get execution output from running pytest for this instance (from validation step)
         test_output_path = (

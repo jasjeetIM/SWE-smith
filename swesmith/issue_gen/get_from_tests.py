@@ -37,7 +37,7 @@ from swesmith.constants import (
     TEST_OUTPUT_START,
 )
 from swesmith.issue_gen.utils import get_test_function
-from swesmith.profiles import RepoProfile, global_registry
+from swesmith.profiles import RepoProfile, registry
 from swesmith.profiles.python import PythonProfile
 from tqdm.auto import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -171,7 +171,7 @@ def _process_instance(instance: dict, config_file: str | None, model: str | None
             return {"completed": 1, "timed_out": 0, "failed": 0}
     else:
         test_idx = random.randint(0, len(instance[FAIL_TO_PASS]) - 1)
-        rp = global_registry.get_from_inst(instance)
+        rp = registry.get_from_inst(instance)
         cmd = get_verbose_test_cmd(instance, rp, test_idx)
         test_output = run_command_in_container(instance, cmd)
         test_func = get_test_function(instance, test_idx)

@@ -34,7 +34,7 @@ from swebench.harness.constants import (
     LOG_REPORT,
 )
 from swesmith.constants import KEY_TIMED_OUT, LOG_DIR_RUN_VALIDATION, LOG_DIR_TASKS
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 from tqdm.auto import tqdm
 
 
@@ -62,7 +62,7 @@ def _remove_task_instance(
         del task_insts_cache[repo][inst_id]
         removed_task = True
     # 3. Optionally, delete branch from remote if exists
-    rp = global_registry.get(repo)
+    rp = registry.get(repo)
     if inst_id in rp.branches:
         try:
             subprocess.run(
@@ -111,7 +111,7 @@ def main(
             repo = inst_id.rsplit(".", 1)[0]
             validation_path = logs_validation / repo / inst_id
             task_insts_file = logs_task_insts / f"{repo}.json"
-            rp = global_registry.get(repo)
+            rp = registry.get(repo)
             _, cloned = rp.clone()
             if cloned:
                 cloned_repos.add(repo)

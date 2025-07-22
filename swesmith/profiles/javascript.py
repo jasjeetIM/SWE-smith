@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from swesmith.constants import KEY_PATCH
 from swebench.harness.constants import TestStatus
-from swesmith.profiles.base import RepoProfile, global_registry
+from swesmith.profiles.base import RepoProfile, registry
 from swesmith.profiles.utils import X11_DEPS
 from unidiff import PatchSet
 
@@ -322,4 +322,4 @@ for name, obj in list(globals().items()):
         and issubclass(obj, JavaScriptProfile)
         and obj.__name__ != "JavaScriptProfile"
     ):
-        global_registry.register_profile(obj)
+        registry.register_profile(obj)

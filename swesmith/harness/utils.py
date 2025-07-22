@@ -31,7 +31,7 @@ from swesmith.constants import (
     TEST_OUTPUT_END,
     TEST_OUTPUT_START,
 )
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 from unidiff import PatchSet
 
 
@@ -117,7 +117,7 @@ def run_patch_in_container(
     container = None
     client = docker.from_env()
     instance_id = instance[KEY_INSTANCE_ID]
-    rp = global_registry.get_from_inst(instance)
+    rp = registry.get_from_inst(instance)
     is_eval = log_dir == RUN_EVALUATION_LOG_DIR
     try:
         container_type = None

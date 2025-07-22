@@ -48,7 +48,7 @@ from swesmith.constants import (
     LOG_DIR_RUN_VALIDATION,
     REF_SUFFIX,
 )
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 from tqdm.auto import tqdm
 
 FAILURE_TIPS = """
@@ -219,7 +219,7 @@ def _main(
             FAIL_TO_PASS: results[FAIL_TO_PASS],
             PASS_TO_PASS: results[PASS_TO_PASS],
         }
-        rp = global_registry.get_from_inst(task_instance)
+        rp = registry.get_from_inst(task_instance)
         task_instance[KEY_IMAGE_NAME] = rp.image_name
         task_instance["repo"] = rp.mirror_name
 
@@ -341,7 +341,7 @@ def _main(
             print(f"[{repo}] Removed local clone")
             if repush_image:
                 print(f"[{repo}] Rebuilding + pushing image")
-                global_registry.get(repo).push_image(rebuild_image=True)
+                registry.get(repo).push_image(rebuild_image=True)
 
     task_instances_path.parent.mkdir(parents=True, exist_ok=True)
     with open(task_instances_path, "w") as f:

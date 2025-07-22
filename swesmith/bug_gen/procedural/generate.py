@@ -26,7 +26,7 @@ from swesmith.constants import (
     BugRewrite,
     CodeEntity,
 )
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 from tqdm.auto import tqdm
 
 from swesmith.bug_gen.procedural import PythonProceduralModifier
@@ -128,7 +128,7 @@ def main(
 ):
     random.seed(seed)
     total = 0
-    rp = global_registry.get(repo)
+    rp = registry.get(repo)
     rp.clone()
     entities = rp.extract_entities()
     print(f"Found {len(entities)} entities in {repo}.")

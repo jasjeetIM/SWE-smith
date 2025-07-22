@@ -36,7 +36,7 @@ from swesmith.constants import (
     PREFIX_METADATA,
     INSTANCE_REF,
 )
-from swesmith.profiles import global_registry, RepoProfile
+from swesmith.profiles import registry, RepoProfile
 from tqdm.auto import tqdm
 from unidiff import PatchSet
 
@@ -258,7 +258,7 @@ def process_single_instance(inst, repo, model, api_key=None):
         os.makedirs(log_path, exist_ok=True)
 
         os.chdir(temp_dir)
-        global_registry.get(repo).clone()
+        registry.get(repo).clone()
 
         # Check if we should attempt recovery
         attempt_recovery, reason = should_attempt_recovery(inst, repo)
@@ -339,7 +339,7 @@ def init_worker():
 
 def sweb_inst_to_rp(inst: dict) -> RepoProfile:
     owner, repo = inst["repo"].split("/")
-    rps = [x for x in global_registry.values() if x.owner == owner and x.repo == repo]
+    rps = [x for x in registry.values() if x.owner == owner and x.repo == repo]
     if len(rps) == 0:
         raise ValueError(
             f"{repo} not found in SWE-smith registry, create profile for repo under swesmith/profiles"

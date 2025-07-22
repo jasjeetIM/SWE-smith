@@ -12,7 +12,7 @@ from swebench.harness.constants import (
 from swebench.harness.docker_build import build_image as build_image_sweb
 from swebench.harness.dockerfiles import get_dockerfile_env
 from swesmith.constants import LOG_DIR_ENV, ENV_NAME, INSTANCE_REF
-from swesmith.profiles.base import RepoProfile, global_registry
+from swesmith.profiles.base import RepoProfile, registry
 from swesmith.profiles.utils import INSTALL_BAZEL, INSTALL_CMAKE
 
 
@@ -1347,4 +1347,4 @@ for name, obj in list(globals().items()):
         and issubclass(obj, PythonProfile)
         and obj.__name__ != "PythonProfile"
     ):
-        global_registry.register_profile(obj)
+        registry.register_profile(obj)

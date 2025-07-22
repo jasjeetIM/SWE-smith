@@ -26,7 +26,7 @@ from swesmith.constants import (
     PREFIX_METADATA,
     generate_hash,
 )
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 from tqdm.auto import tqdm
 
 COMBINE_FILE = "combine_file"
@@ -45,7 +45,7 @@ def main(
     )
     repo = bug_gen_dir.strip("/").split("/")[-1]
     bug_gen_dir = Path(bug_gen_dir)
-    global_registry.get(repo).clone()
+    registry.get(repo).clone()
     folders = [
         x
         for x in os.listdir(bug_gen_dir)

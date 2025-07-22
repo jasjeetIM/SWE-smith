@@ -5,6 +5,7 @@ This module defines the abstract base class for repository profiles that specify
 installation and testing configurations for different repositories.
 """
 
+import docker
 import os
 import platform
 import shutil
@@ -13,12 +14,18 @@ import subprocess
 from abc import ABC, abstractmethod, ABCMeta
 from collections import UserDict
 from dataclasses import dataclass, field
+from docker.models.containers import Container
 from dotenv import load_dotenv
 from ghapi.all import GhApi
 from multiprocessing import Lock
 from pathlib import Path
 from swesmith.bug_gen.adapters import get_entities_from_file, SUPPORTED_EXTS
-from swebench.harness.constants import FAIL_TO_PASS, KEY_INSTANCE_ID
+from swebench.harness.constants import (
+    DOCKER_USER,
+    DOCKER_WORKDIR,
+    FAIL_TO_PASS,
+    KEY_INSTANCE_ID,
+)
 from swesmith.constants import (
     KEY_PATCH,
     LOG_DIR_ENV,
@@ -31,8 +38,6 @@ from unidiff import PatchSet
 
 
 load_dotenv()
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-api = GhApi(token=GITHUB_TOKEN)
 
 
 class SingletonMeta(ABCMeta):
@@ -79,6 +84,9 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     # this design may have to be updated.
     _lock: Lock = field(default_factory=Lock, init=False, repr=False, compare=False)
 
+    # GitHub API instance (lazily initialized)
+    _api: GhApi | None = field(default=None, init=False, repr=False, compare=False)
+
     # Class-level caches
     _cache_test_paths = None
     _cache_branches = None
@@ -86,6 +94,14 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     _cache_image_exists = None
 
     ### START: Properties, Methods that *do not* require (re-)implementation ###
+
+    @property
+    def api(self) -> GhApi:
+        """Get GitHub API instance with lazy initialization."""
+        if self._api is None:
+            token = os.getenv("GITHUB_TOKEN")
+            self._api = GhApi(token=token)
+        return self._api
 
     @property
     def image_name(self) -> str:
@@ -108,7 +124,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
             while page == 1 or increase > 0:
                 prev = len(self._cache_branches)
                 self._cache_branches.extend(
-                    api.repos.list_branches(
+                    self.api.repos.list_branches(
                         owner=self.org_gh,
                         repo=self.repo_name,
                         prefix=self.repo_name,
@@ -145,7 +161,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
         """Check if mirror repository exists under organization"""
         if self._cache_mirror_exists is not True:
             try:
-                api.repos.get(owner=self.org_gh, repo=self.repo_name)
+                self.api.repos.get(owner=self.org_gh, repo=self.repo_name)
                 self._cache_mirror_exists = True
             except:
                 self._cache_mirror_exists = False
@@ -173,7 +189,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
             return
         if self.repo_name in os.listdir():
             shutil.rmtree(self.repo_name)
-        api.repos.create_in_org(self.org_gh, self.repo_name)
+        self.api.repos.create_in_org(self.org_gh, self.repo_name)
 
         # Clone the repository
         subprocess.run(
@@ -293,6 +309,31 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
             shutil.rmtree(dir_path)
         return entities
 
+    def get_container(self, instance: dict) -> Container:
+        """Return a docker container with the task instance initialized"""
+        client = docker.from_env()
+        self.pull_image()
+        container = client.containers.create(
+            image=self.image_name,
+            name=instance[KEY_INSTANCE_ID],
+            user=DOCKER_USER,
+            detach=True,
+            command="tail -f /dev/null",
+            platform="linux/x86_64",
+            mem_limit="10g",
+        )
+        container.start()
+        val = container.exec_run(
+            f"git checkout {instance[KEY_INSTANCE_ID]}",
+            workdir=DOCKER_WORKDIR,
+            user=DOCKER_USER,
+        )
+        if val.exit_code != 0:
+            raise RuntimeError(
+                f"Failed to checkout instance {instance[KEY_INSTANCE_ID]} in container: {val.output.decode()}"
+            )
+        return container
+
     def pull_image(self):
         """Pull the Docker image for this repository profile."""
         if self._cache_image_exists is True:
@@ -325,6 +366,10 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
             "Image must be built or pulled before pushing"
         )
         subprocess.run(f"docker push {self.image_name}", shell=True)
+
+    def set_github_token(self, token: str):
+        """Set a custom GitHub token and reset the API instance."""
+        self._api = GhApi(token=token)
 
     ### END: Properties, Methods that *do not* require (re-)implementation ###
 
@@ -464,6 +509,10 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
 class Registry(UserDict):
     """A registry mapping repo/mirror names to RepoProfile subclasses."""
 
+    def __init__(self, github_token: str | None = None):
+        super().__init__()
+        self.github_token = github_token
+
     def register_profile(self, profile_class: type):
         """Register a RepoProfile subclass (except base types)."""
         # Skip base types
@@ -485,7 +534,10 @@ class Registry(UserDict):
         cls = self.data.get(key)
         if cls is None:
             raise KeyError(f"No profile registered for key: {key}")
-        return cls()
+        profile = cls()
+        if self.github_token:
+            profile.set_github_token(self.github_token)
+        return profile
 
     def get_from_inst(self, instance: dict) -> RepoProfile:
         """Get a profile class by a SWE-smith instance dict."""
@@ -496,8 +548,18 @@ class Registry(UserDict):
         return self.data.keys()
 
     def values(self):
-        return [cls() for cls in set(self.data.values())]
+        profiles = []
+        for cls in set(self.data.values()):
+            profile = cls()
+            if self.github_token:
+                profile.set_github_token(self.github_token)
+            profiles.append(profile)
+        return profiles
+
+    def set_github_token(self, token: str):
+        """Set GitHub token for all profiles retrieved from this registry."""
+        self.github_token = token
 
 
 # Global registry instance that can be shared across modules
-global_registry = Registry()
+registry = Registry()

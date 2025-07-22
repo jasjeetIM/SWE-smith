@@ -42,7 +42,7 @@ from swesmith.constants import (
     BugRewrite,
     CodeEntity,
 )
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 from tqdm.auto import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing import Any
@@ -130,7 +130,7 @@ def main(
 
     # Clone repository, identify valid candidates
     print("Cloning repository...")
-    rp = global_registry.get(repo)
+    rp = registry.get(repo)
     rp.clone()
     print("Extracting candidates...")
     candidates = rp.extract_entities()

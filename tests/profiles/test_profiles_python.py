@@ -6,7 +6,7 @@ from pathlib import Path
 # Mock docker import
 with patch("docker.from_env", return_value=MagicMock()):
     from swesmith.profiles.python import PythonProfile, Addict75284f95, AutogradAc044f0d
-    from swesmith.profiles import global_registry
+    from swesmith.profiles import registry
 
 
 def test_python_profile_defaults():
@@ -190,7 +190,7 @@ def test_python_profile_registry_integration():
     ]
 
     for key in python_profile_keys:
-        profile = global_registry.get(key)
+        profile = registry.get(key)
         assert profile is not None
         assert isinstance(profile, PythonProfile)
 

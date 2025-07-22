@@ -29,7 +29,7 @@ from swesmith.constants import (
 )
 from swesmith.harness.grading import get_valid_report
 from swesmith.harness.utils import run_patch_in_container
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 
 
 def print_report(log_dir: Path) -> None:
@@ -59,7 +59,7 @@ def run_validation(instance: dict) -> None:
     2. Get the report from the test output.
     """
     instance_id = instance[KEY_INSTANCE_ID]
-    rp = global_registry.get_from_inst(instance)
+    rp = registry.get_from_inst(instance)
     valid_folder = LOG_DIR_RUN_VALIDATION / instance["repo"]
     val_postgold_path = (
         valid_folder / f"{instance['repo']}{REF_SUFFIX}" / LOG_TEST_OUTPUT
@@ -190,7 +190,7 @@ def main(
     # Run validation
     payloads = list()
     for repo, bug_patches in repo_to_bug_patches.items():
-        rp = global_registry.get(repo)
+        rp = registry.get(repo)
         ref_inst = f"{rp.repo_name}{REF_SUFFIX}"
         ref_dir = LOG_DIR_RUN_VALIDATION / repo / ref_inst
         if not rp.min_pregold and not os.path.exists(ref_dir):

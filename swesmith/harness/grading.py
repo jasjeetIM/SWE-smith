@@ -15,7 +15,7 @@ from swesmith.constants import (
     TEST_OUTPUT_END,
     TEST_OUTPUT_START,
 )
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 
 
 def read_test_output(filename: str):
@@ -51,7 +51,7 @@ def get_valid_report(
     Returns:
         report (dict): map of type of status change to list of test cases
     """
-    rp = global_registry.get(instance["repo"])
+    rp = registry.get(instance["repo"])
 
     val_pregold_output, found_pregold = read_test_output(val_pregold_path)
     val_postgold_output, found_postgold = read_test_output(val_postgold_path)
@@ -205,7 +205,7 @@ def get_eval_report(
         "patch_exists": False,
         "resolved": False,
     }
-    rp = global_registry.get_from_inst(inst)
+    rp = registry.get_from_inst(inst)
 
     # Check if model patch exists
     if prediction[KEY_PREDICTION] is None:

@@ -26,7 +26,7 @@ from swebench.harness.utils import run_threadpool
 from swesmith.constants import HF_DATASET, KEY_PATCH, KEY_TIMED_OUT
 from swesmith.harness.grading import get_eval_report
 from swesmith.harness.utils import matches_instance_filter, run_patch_in_container
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 
 
 def run_evaluation(
@@ -40,7 +40,7 @@ def run_evaluation(
     Run per-prediction evaluation
     """
     instance_id = pred[KEY_INSTANCE_ID]
-    rp = global_registry.get_from_inst(instance)
+    rp = registry.get_from_inst(instance)
     logger, timed_out = run_patch_in_container(  # type: ignore
         instance,
         run_id,

@@ -11,7 +11,7 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 
 
 def build_profile_image(profile, push=False):
@@ -48,7 +48,7 @@ def build_all_images(workers=4, profile_filter=None, proceed=False, push=False):
         tuple: (successful_builds, failed_builds)
     """
     # Get all available profiles
-    all_profiles = global_registry.values()
+    all_profiles = registry.values()
 
     # Remove environments that have already been built
     client = docker.from_env()
@@ -159,7 +159,7 @@ def main():
 
     if args.list_envs:
         print("All execution environment Docker images:")
-        for profile in global_registry.values():
+        for profile in registry.values():
             print(f"  {profile.image_name}")
         return
 

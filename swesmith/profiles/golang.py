@@ -9,7 +9,7 @@ from swebench.harness.constants import (
     KEY_INSTANCE_ID,
     TestStatus,
 )
-from swesmith.profiles.base import RepoProfile, global_registry
+from swesmith.profiles.base import RepoProfile, registry
 
 
 @dataclass
@@ -931,4 +931,4 @@ for name, obj in list(globals().items()):
         and issubclass(obj, GoProfile)
         and obj.__name__ != "GoProfile"
     ):
-        global_registry.register_profile(obj)
+        registry.register_profile(obj)

@@ -8,7 +8,7 @@ from swebench.harness.constants import FAIL_TO_PASS, KEY_INSTANCE_ID
 from swesmith.bug_gen.mirror.generate import INSTANCE_REF
 from swesmith.constants import KEY_PATCH
 from swesmith.constants import ORG_NAME_GH
-from swesmith.profiles import global_registry, RepoProfile
+from swesmith.profiles import registry, RepoProfile
 from swesmith.profiles.utils import INSTALL_CMAKE, INSTALL_BAZEL
 from unittest.mock import patch
 
@@ -24,11 +24,11 @@ def clear_singleton_cache():
 
 def test_registry_keys_and_lookup():
     # Should have many keys after importing profiles
-    keys = global_registry.keys()
+    keys = registry.keys()
     assert len(keys) > 0
     # Pick a known profile
     key = "mewwts__addict.75284f95"
-    repo_profile = global_registry.get(key)
+    repo_profile = registry.get(key)
     assert repo_profile is not None
     assert isinstance(repo_profile, RepoProfile)
     assert repo_profile.owner == "mewwts"
@@ -39,7 +39,7 @@ def test_registry_keys_and_lookup():
 
 
 def test_image_name():
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
     image_name = repo_profile.image_name
     assert "swesmith" in image_name
     assert repo_profile.owner in image_name
@@ -49,7 +49,7 @@ def test_image_name():
 
 def test_repo_profile_clone():
     """Test the RepoProfile.clone method, adapted from the original clone_repo test."""
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
 
     # Test with default dest (should use repo_name)
     expected_dest = repo_profile.repo_name
@@ -107,7 +107,7 @@ def test_repo_profile_clone():
 
 def test_python_log_parser():
     # Use the default PythonProfile log_parser
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
     log = "test_foo.py PASSED\ntest_bar.py FAILED\ntest_baz.py SKIPPED"
 
     # Patch TestStatus for this test
@@ -136,7 +136,7 @@ def test_python_log_parser():
 def test_golang_log_parser():
     # Use Gin3c12d2a8 Go profile
     key = "gin-gonic__gin.3c12d2a8"
-    repo_profile = global_registry.get(key)
+    repo_profile = registry.get(key)
     log = """
 --- PASS: TestFoo (0.01s)
 --- FAIL: TestBar (0.02s)
@@ -268,12 +268,13 @@ def test_registry_values():
 
 def test_mirror_exists():
     """Test _mirror_exists method"""
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
 
     # Test when mirror exists (api.repos.get does not raise)
-    with patch("swesmith.profiles.base.api.repos.get", return_value=None) as mock_get:
+    with patch.object(repo_profile.api, "repos") as mock_repos:
+        mock_repos.get.return_value = None
         assert repo_profile._mirror_exists() is True
-        mock_get.assert_called_once_with(
+        mock_repos.get.assert_called_once_with(
             owner=repo_profile.org_gh, repo=repo_profile.repo_name
         )
 
@@ -281,30 +282,29 @@ def test_mirror_exists():
     repo_profile._cache_mirror_exists = None
 
     # Test when mirror does not exist (api.repos.get raises Exception)
-    with patch(
-        "swesmith.profiles.base.api.repos.get", side_effect=Exception("not found")
-    ) as mock_get:
+    with patch.object(repo_profile.api, "repos") as mock_repos:
+        mock_repos.get.side_effect = Exception("not found")
         assert repo_profile._mirror_exists() is False
-        mock_get.assert_called_once_with(
+        mock_repos.get.assert_called_once_with(
             owner=repo_profile.org_gh, repo=repo_profile.repo_name
         )
 
 
 def test_create_mirror():
     """Test create_mirror method"""
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
 
     with (
         patch.object(repo_profile, "_mirror_exists", return_value=True),
         patch("os.listdir", return_value=[]),
         patch("shutil.rmtree"),
-        patch("swesmith.profiles.base.api") as mock_api,
+        patch.object(repo_profile.api, "repos") as mock_repos,
         patch("subprocess.run") as mock_run,
     ):
         repo_profile.create_mirror()
 
         # Should not create mirror if it already exists
-        mock_api.repos.create_in_org.assert_not_called()
+        mock_repos.create_in_org.assert_not_called()
         mock_run.assert_not_called()
 
     # Test creating new mirror
@@ -312,19 +312,19 @@ def test_create_mirror():
         patch.object(repo_profile, "_mirror_exists", return_value=False),
         patch("os.listdir", return_value=[repo_profile.repo_name]),
         patch("shutil.rmtree"),
-        patch("swesmith.profiles.base.api") as mock_api,
+        patch.object(repo_profile.api, "repos") as mock_repos,
         patch("subprocess.run") as mock_run,
     ):
         repo_profile.create_mirror()
 
         # Should create mirror and run git commands
-        mock_api.repos.create_in_org.assert_called_once()
+        mock_repos.create_in_org.assert_called_once()
         assert mock_run.call_count == 3  # Three git commands
 
 
 def test_repo_profile_properties():
     """Test RepoProfile properties"""
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
 
     # Test repo_name property
     expected_repo_name = (
@@ -348,7 +348,7 @@ def test_repo_profile_properties():
 
 def test_repo_profile_platform_detection():
     """Test platform detection in RepoProfile"""
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
 
     # Test that arch and pltf are set based on platform
     assert repo_profile.arch in ["x86_64", "arm64"]
@@ -363,7 +363,7 @@ def test_repo_profile_platform_detection():
 
 def test_clone_mirror_not_exists():
     """Test clone method when mirror doesn't exist"""
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
 
     with patch.object(repo_profile, "_mirror_exists", return_value=False):
         with pytest.raises(ValueError, match="Mirror clone repo must be created first"):
@@ -372,7 +372,7 @@ def test_clone_mirror_not_exists():
 
 def test_clone_subprocess_error():
     """Test clone method when subprocess fails"""
-    repo_profile = global_registry.get("mewwts__addict.75284f95")
+    repo_profile = registry.get("mewwts__addict.75284f95")
 
     with (
         patch.object(repo_profile, "_mirror_exists", return_value=True),

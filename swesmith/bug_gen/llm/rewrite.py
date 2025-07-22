@@ -41,7 +41,7 @@ from swesmith.constants import (
     BugRewrite,
     CodeEntity,
 )
-from swesmith.profiles import global_registry
+from swesmith.profiles import registry
 from tqdm.auto import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing import Any
@@ -64,7 +64,7 @@ def main(
     **kwargs,
 ):
     configs = yaml.safe_load(open(config_file))
-    rp = global_registry.get(repo)
+    rp = registry.get(repo)
     rp.clone()
 
     print(f"Extracting entities from {repo}...")

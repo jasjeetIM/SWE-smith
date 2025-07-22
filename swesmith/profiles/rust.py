@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from swebench.harness.constants import TestStatus
-from swesmith.profiles.base import RepoProfile, global_registry
+from swesmith.profiles.base import RepoProfile, registry
 
 
 @dataclass
@@ -52,4 +52,4 @@ for name, obj in list(globals().items()):
         and issubclass(obj, RustProfile)
         and obj.__name__ != "RustProfile"
     ):
-        global_registry.register_profile(obj)
+        registry.register_profile(obj)
