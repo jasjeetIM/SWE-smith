@@ -215,3 +215,149 @@ def test_get_entities_from_file_go_complexity_other_statements(
     get_entities_from_file_go(entities, stmt_file)
     assert len(entities) == 1
     assert entities[0].complexity == 2
+
+
+def test_get_entities_from_file_go_analyze_properties(entities):
+    """Test that _analyze_properties correctly identifies code patterns in Go entities."""
+
+    # Create a map of entity names to their expected properties
+    expected_properties = {
+        "LogFormatterParams.StatusCodeColor": {
+            "is_function": True,
+            "has_if": False,
+            "has_switch": True,  # This uses switch statement
+            "has_if_else": False,  # This uses switch, not if-else
+            "has_return": True,
+            "has_binary_op": True,  # >= comparisons
+            "has_off_by_one": True,  # >= and < comparisons
+            "has_assignment": True,  # code := p.StatusCode
+        },
+        "LogFormatterParams.MethodColor": {
+            "is_function": True,
+            "has_if": False,
+            "has_switch": True,  # This uses switch statement
+            "has_return": True,
+            "has_assignment": True,  # method := p.Method
+        },
+        "LogFormatterParams.ResetColor": {
+            "is_function": True,
+            "has_if": False,
+            "has_return": True,
+            "has_assignment": False,
+        },
+        "LogFormatterParams.IsOutputColor": {
+            "is_function": True,
+            "has_return": True,
+            "has_binary_op": True,  # == and && operators
+            "has_bool_op": True,  # || operator
+        },
+        "DisableConsoleColor": {
+            "is_function": True,
+            "has_assignment": True,  # consoleColorMode = disableColor
+            "has_return": False,
+        },
+        "ErrorLoggerT": {
+            "is_function": True,
+            "has_return": True,
+            "has_lambda": True,  # Returns anonymous function
+            "has_if": True,
+            "has_binary_op": True,  # len(errors) > 0
+            "has_off_by_one": True,  # > comparison
+            "has_function_call": True,
+        },
+        "LoggerWithConfig": {
+            "is_function": True,
+            "has_if": True,
+            "has_assignment": True,
+            "has_function_call": True,
+            "has_return": True,
+            "has_lambda": True,  # Returns anonymous function
+            "has_loop": True,  # for _, path := range notlogged
+        },
+    }
+
+    # Create a map of entities by name for easy lookup
+    entity_map = {entity.name: entity for entity in entities}
+
+    # Test each entity's properties
+    for entity_name, expected_props in expected_properties.items():
+        if entity_name not in entity_map:
+            continue  # Skip if entity not found
+
+        entity = entity_map[entity_name]
+
+        for prop_name, expected_value in expected_props.items():
+            actual_value = getattr(entity, prop_name)
+            assert actual_value == expected_value, (
+                f"Entity '{entity_name}' property '{prop_name}': "
+                f"expected {expected_value}, got {actual_value}. "
+                f"All tags: {[tag.value for tag in entity._tags]}"
+            )
+
+
+def test_get_entities_from_file_go_analyze_properties_comprehensive(tmp_path):
+    """Test _analyze_properties with a comprehensive Go function that has many patterns."""
+
+    comprehensive_go_code = """
+package main
+
+import "fmt"
+
+func ComprehensiveFunction(arr []int, threshold int) (int, error) {
+    if len(arr) == 0 {
+        return 0, fmt.Errorf("empty array")
+    }
+    
+    sum := 0
+    count := 0
+    
+    for i := 0; i < len(arr); i++ {
+        value := arr[i]
+        if value > threshold && value < 1000 {
+            sum += value
+            count++
+        } else if value <= threshold {
+            sum -= value
+        }
+    }
+    
+    // Anonymous function
+    process := func(x int) int {
+        return x * 2
+    }
+    
+    result := process(sum)
+    
+    if count > 0 || result >= 100 {
+        return result / count, nil
+    }
+    
+    return result, nil
+}
+"""
+
+    test_file = tmp_path / "comprehensive.go"
+    test_file.write_text(comprehensive_go_code)
+
+    entities = []
+    get_entities_from_file_go(entities, test_file)
+
+    assert len(entities) == 1
+    entity = entities[0]
+
+    # Test all the expected properties
+    assert entity.is_function == True
+    assert entity.has_if == True
+    assert entity.has_if_else == True
+    assert entity.has_loop == True
+    assert entity.has_return == True
+    assert entity.has_assignment == True
+    assert entity.has_function_call == True
+    assert entity.has_list_indexing == True
+    assert entity.has_binary_op == True
+    assert entity.has_bool_op == True
+    assert entity.has_off_by_one == True
+    assert entity.has_lambda == True
+
+    # Verify the entity name
+    assert entity.name == "ComprehensiveFunction"

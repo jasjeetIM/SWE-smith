@@ -1,6 +1,6 @@
 import re
 
-from swesmith.constants import TODO_REWRITE, CodeEntity
+from swesmith.constants import TODO_REWRITE, CodeEntity, CodeProperty
 from tree_sitter import Language, Parser, Query, QueryCursor
 import tree_sitter_go as tsgo
 import warnings
@@ -9,6 +9,77 @@ GO_LANGUAGE = Language(tsgo.language())
 
 
 class GoEntity(CodeEntity):
+    def _analyze_properties(self):
+        """Analyze Go code properties."""
+        node = self.node
+
+        # Core entity types
+        if node.type in ["function_declaration", "method_declaration"]:
+            self._tags.add(CodeProperty.IS_FUNCTION)
+
+        # Control flow and operations analysis
+        self._walk_for_properties(node)
+
+    def _walk_for_properties(self, n):
+        """Walk the AST and analyze properties."""
+        self._check_control_flow(n)
+        self._check_operations(n)
+        self._check_expressions(n)
+
+        for child in n.children:
+            self._walk_for_properties(child)
+
+    def _check_control_flow(self, n):
+        """Check for control flow patterns."""
+        if n.type == "for_statement":
+            self._tags.add(CodeProperty.HAS_LOOP)
+        if n.type == "if_statement":
+            self._tags.add(CodeProperty.HAS_IF)
+            # Check if this if statement has an else clause
+            for child in n.children:
+                if child.type == "else":
+                    self._tags.add(CodeProperty.HAS_IF_ELSE)
+                    break
+        # Handle switch statements as control flow
+        if n.type in ["expression_switch_statement", "type_switch_statement"]:
+            self._tags.add(CodeProperty.HAS_SWITCH)
+
+    def _check_operations(self, n):
+        """Check for various operations."""
+        if n.type == "index_expression":
+            self._tags.add(CodeProperty.HAS_LIST_INDEXING)
+        if n.type == "call_expression":
+            self._tags.add(CodeProperty.HAS_FUNCTION_CALL)
+        if n.type == "return_statement":
+            self._tags.add(CodeProperty.HAS_RETURN)
+        if n.type == "import_declaration":
+            self._tags.add(CodeProperty.HAS_IMPORT)
+        if n.type in [
+            "assignment_expression",
+            "assignment_statement",
+            "short_var_declaration",
+            "var_declaration",
+        ]:
+            self._tags.add(CodeProperty.HAS_ASSIGNMENT)
+        if n.type == "func_literal":  # Anonymous functions in Go
+            self._tags.add(CodeProperty.HAS_LAMBDA)
+
+    def _check_expressions(self, n):
+        """Check expression patterns."""
+        if n.type == "binary_expression":
+            self._tags.add(CodeProperty.HAS_BINARY_OP)
+            # Check for boolean operators
+            for child in n.children:
+                if hasattr(child, "text"):
+                    text = child.text.decode("utf-8")
+                    if text in ["&&", "||"]:
+                        self._tags.add(CodeProperty.HAS_BOOL_OP)
+                    # Check for comparison operators (off by one potential)
+                    elif text in ["<", ">", "<=", ">="]:
+                        self._tags.add(CodeProperty.HAS_OFF_BY_ONE)
+        if n.type == "unary_expression":
+            self._tags.add(CodeProperty.HAS_UNARY_OP)
+
     @property
     def name(self) -> str:
         func_query = Query(

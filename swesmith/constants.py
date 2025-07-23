@@ -54,6 +54,7 @@ class CodeProperty(Enum):
     HAS_IF = "has_if"
     HAS_IF_ELSE = "has_if_else"
     HAS_LOOP = "has_loop"
+    HAS_SWITCH = "has_switch"  # Added for switch statements
 
     # Operations
     HAS_ARITHMETIC = "has_arithmetic"
