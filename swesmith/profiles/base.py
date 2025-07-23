@@ -277,7 +277,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
         max_entities: int = -1,
     ) -> list[CodeEntity]:
         """
-        Extracts entities (functions, classes, etc.) from Python files in a directory.
+        Extracts entities (functions, classes, etc.) from files in a directory.
         Args:
             directory_path (str): Path to the directory to scan.
             exclude_tests (bool): Whether to exclude test files and directories.

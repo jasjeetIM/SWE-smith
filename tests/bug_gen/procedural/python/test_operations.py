@@ -1,6 +1,6 @@
 import libcst
 import pytest
-from swesmith.bug_gen.procedural.operations import (
+from swesmith.bug_gen.procedural.python.operations import (
     OperationBreakChainsModifier,
     OperationChangeConstantsModifier,
 )
@@ -58,7 +58,8 @@ def qux(a, b, c, d):
 def test_operation_break_chains(src, expected_variants):
     module = libcst.parse_module(src)
     modifier = OperationBreakChainsModifier(likelihood=0.5, seed=42)  # deterministic
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     result = modified.code
     assert any(result.strip() == variant.strip() for variant in expected_variants), (
         f"Got: {result!r}, expected one of: {expected_variants!r}"
@@ -118,7 +119,8 @@ def qux(a, b):
 def test_operation_change_constants(src, expected_variants):
     module = libcst.parse_module(src)
     modifier = OperationChangeConstantsModifier(likelihood=1.0, seed=42)  # always flip
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     result = modified.code
     assert any(result.strip() == variant.strip() for variant in expected_variants), (
         f"Got: {result!r}, expected one of: {expected_variants!r}"

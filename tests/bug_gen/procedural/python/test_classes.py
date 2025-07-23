@@ -1,6 +1,6 @@
 import libcst
 import pytest
-from swesmith.bug_gen.procedural.classes import (
+from swesmith.bug_gen.procedural.python.classes import (
     ClassRemoveBasesModifier,
     ClassShuffleMethodsModifier,
     ClassRemoveFuncsModifier,
@@ -37,7 +37,8 @@ class Foo(Bar, Baz):
 def test_class_remove_bases(src, expected_variants):
     module = libcst.parse_module(src)
     modifier = ClassRemoveBasesModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert any(
         modified.code.strip() == variant.strip() for variant in expected_variants
     )
@@ -74,7 +75,8 @@ def test_class_remove_bases(src, expected_variants):
 def test_class_shuffle_methods(src, expected_variants):
     module = libcst.parse_module(src)
     modifier = ClassShuffleMethodsModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert any(
         modified.code.strip() == variant.strip() for variant in expected_variants
     )
@@ -128,7 +130,8 @@ def test_class_shuffle_methods(src, expected_variants):
 def test_class_remove_funcs(src, expected_variants):
     module = libcst.parse_module(src)
     modifier = ClassRemoveFuncsModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert any(
         modified.code.strip() == variant.strip() for variant in expected_variants
     )

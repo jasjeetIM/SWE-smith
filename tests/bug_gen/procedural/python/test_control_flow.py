@@ -1,6 +1,6 @@
 import libcst
 import pytest
-from swesmith.bug_gen.procedural.control_flow import (
+from swesmith.bug_gen.procedural.python.control_flow import (
     ControlIfElseInvertModifier,
     ControlShuffleLinesModifier,
 )
@@ -42,7 +42,8 @@ def bar(x):
 def test_control_if_else_invert(src, expected):
     module = libcst.parse_module(src)
     modifier = ControlIfElseInvertModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert modified.code.strip() == expected.strip()
 
 
@@ -76,7 +77,8 @@ def bar():
 def test_control_shuffle_lines(src, expected_variants):
     module = libcst.parse_module(src)
     modifier = ControlShuffleLinesModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert any(
         modified.code.strip() == variant.strip() for variant in expected_variants
     )

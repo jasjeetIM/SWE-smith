@@ -1,6 +1,6 @@
 import libcst
 import pytest
-from swesmith.bug_gen.procedural.remove import (
+from swesmith.bug_gen.procedural.python.remove import (
     RemoveLoopModifier,
     RemoveConditionalModifier,
     RemoveAssignModifier,
@@ -40,7 +40,8 @@ def bar():
 def test_remove_loop(src, expected):
     module = libcst.parse_module(src)
     modifier = RemoveLoopModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert modified.code.strip() == expected.strip()
 
 
@@ -77,7 +78,8 @@ def bar(x):
 def test_remove_conditional(src, expected):
     module = libcst.parse_module(src)
     modifier = RemoveConditionalModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert modified.code.strip() == expected.strip()
 
 
@@ -112,7 +114,8 @@ def bar():
 def test_remove_assign(src, expected):
     module = libcst.parse_module(src)
     modifier = RemoveAssignModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert modified.code.strip() == expected.strip()
 
 
@@ -150,5 +153,6 @@ def bar():
 def test_remove_wrapper(src, expected):
     module = libcst.parse_module(src)
     modifier = RemoveWrapperModifier(likelihood=1.0, seed=42)
-    modified = module.visit(modifier)
+    transformer = modifier.Transformer(modifier)
+    modified = module.visit(transformer)
     assert modified.code.strip() == expected.strip()
