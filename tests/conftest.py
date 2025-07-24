@@ -26,8 +26,18 @@ def test_file_c_sharp():
 
 
 @pytest.fixture
-def test_file_go():
-    return Path(repo_root) / "tests/test_logs/files/go/logger.go"
+def test_file_go_caddy_listeners():
+    return Path(repo_root) / "tests/test_logs/files/go/caddy/listeners.go"
+
+
+@pytest.fixture
+def test_file_go_caddy_usagepool():
+    return Path(repo_root) / "tests/test_logs/files/go/caddy/usagepool.go"
+
+
+@pytest.fixture
+def test_file_go_gin():
+    return Path(repo_root) / "tests/test_logs/files/go/gin/logger.go"
 
 
 @pytest.fixture

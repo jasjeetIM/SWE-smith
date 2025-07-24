@@ -8,9 +8,9 @@ from swesmith.bug_gen.adapters.golang import (
 
 
 @pytest.fixture
-def entities(test_file_go):
+def entities(test_file_go_gin):
     entities = []
-    get_entities_from_file_go(entities, test_file_go)
+    get_entities_from_file_go(entities, test_file_go_gin)
     return entities
 
 
@@ -18,9 +18,9 @@ def test_get_entities_from_file_go_count(entities):
     assert len(entities) == 12
 
 
-def test_get_entities_from_file_go_max(test_file_go):
+def test_get_entities_from_file_go_max(test_file_go_gin):
     entities = []
-    get_entities_from_file_go(entities, test_file_go, 3)
+    get_entities_from_file_go(entities, test_file_go_gin, 3)
     assert len(entities) == 3
 
 
@@ -100,8 +100,8 @@ def test_get_entities_from_file_go_extensions(entities):
     )
 
 
-def test_get_entities_from_file_go_file_paths(entities, test_file_go):
-    assert all([e.file_path == test_file_go for e in entities]), (
+def test_get_entities_from_file_go_file_paths(entities, test_file_go_gin):
+    assert all([e.file_path == test_file_go_gin for e in entities]), (
         "All entities should have the correct file path"
     )
 

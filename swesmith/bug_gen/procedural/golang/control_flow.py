@@ -132,3 +132,101 @@ class ControlIfElseInvertModifier(GolangProceduralModifier):
             )
 
         return modified_source
+
+
+class ControlShuffleLinesModifier(GolangProceduralModifier):
+    explanation: str = "The lines inside a function may be out of order."
+    name: str = "func_pm_ctrl_shuffle"
+    conditions: list = [
+        CodeProperty.IS_FUNCTION,
+        CodeProperty.HAS_LOOP,
+    ]
+    max_complexity: int = 10
+
+    def modify(self, code_entity: CodeEntity) -> BugRewrite:
+        """Apply line shuffling to the Go function body."""
+        if not self.flip():
+            return None
+
+        # Parse the code
+        parser = Parser(GO_LANGUAGE)
+        tree = parser.parse(bytes(code_entity.src_code, "utf8"))
+
+        # Find function declarations to modify
+        modified_code = self._shuffle_function_statements(
+            code_entity.src_code, tree.root_node
+        )
+
+        if modified_code == code_entity.src_code:
+            return None
+
+        return BugRewrite(
+            rewrite=modified_code,
+            explanation=self.explanation,
+            strategy=self.name,
+        )
+
+    def _shuffle_function_statements(self, source_code: str, node) -> str:
+        """Recursively find function declarations and shuffle their statements."""
+        modifications = []
+
+        def collect_function_declarations(n):
+            if n.type == "function_declaration":
+                # Find the function body (block statement)
+                body_block = None
+                for child in n.children:
+                    if child.type == "block":
+                        body_block = child
+                        break
+
+                if body_block and self.flip():
+                    # Get the statements inside the block
+                    statements = []
+                    for child in body_block.children:
+                        # Skip opening and closing braces, collect actual statements
+                        if child.type not in ["{", "}"]:
+                            statements.append(child)
+
+                    # Only shuffle if there are at least 2 statements
+                    if len(statements) >= 2:
+                        modifications.append((body_block, statements))
+
+            for child in n.children:
+                collect_function_declarations(child)
+
+        collect_function_declarations(node)
+
+        if not modifications:
+            return source_code
+
+        # Apply modifications from end to start to preserve byte offsets
+        modified_source = source_code
+        for _, statements in reversed(modifications):
+            # Create a shuffled copy of the statements
+            shuffled_indices = list(range(len(statements)))
+            self.rand.shuffle(shuffled_indices)
+
+            # Extract statement texts with their exact formatting
+            statement_texts = []
+            for stmt in statements:
+                stmt_text = source_code[stmt.start_byte : stmt.end_byte]
+                statement_texts.append(stmt_text)
+
+            # Create shuffled statements
+            shuffled_texts = [statement_texts[i] for i in shuffled_indices]
+
+            # Find the positions of the first and last statements
+            if statements:
+                first_stmt_start = statements[0].start_byte
+                last_stmt_end = statements[-1].end_byte
+
+                # Replace just the statements part, preserving the rest
+                new_statements_content = "".join(shuffled_texts)
+
+                modified_source = (
+                    modified_source[:first_stmt_start]
+                    + new_statements_content
+                    + modified_source[last_stmt_end:]
+                )
+
+        return modified_source

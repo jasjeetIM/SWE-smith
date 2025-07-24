@@ -1,14 +1,18 @@
-from swesmith.profiles import registry
-from swesmith.bug_gen.procedural.golang.control_flow import ControlIfElseInvertModifier
+from swesmith.bug_gen.adapters.golang import get_entities_from_file_go
+from swesmith.bug_gen.procedural.golang.control_flow import (
+    ControlIfElseInvertModifier,
+    ControlShuffleLinesModifier,
+)
+import random
 
 
-def test_control_if_else_invert():
-    rp = registry.get("caddyserver__caddy.77dd12cc")
-    entities = rp.extract_entities()
+def test_control_if_else_invert(test_file_go_caddy_usagepool):
+    entities = []
+    get_entities_from_file_go(entities, test_file_go_caddy_usagepool)
     pm = ControlIfElseInvertModifier(likelihood=1.0)
     entities = [x for x in entities if pm.can_change(x)]
-    assert len(entities) == 164
-    test_entity = entities[4]
+    assert len(entities) == 3
+    test_entity = entities[0]
     modified = pm.modify(test_entity)
     expected = """func (up *UsagePool) LoadOrNew(key any, construct Constructor) (value any, loaded bool, err error) {
 	var upv *usagePoolVal
@@ -45,3 +49,37 @@ def test_control_if_else_invert():
 	return
 }"""
     assert modified.rewrite == expected
+
+
+def test_control_shuffle_lines(test_file_go_caddy_usagepool):
+    entities = []
+    get_entities_from_file_go(entities, test_file_go_caddy_usagepool)
+    pm = ControlShuffleLinesModifier(likelihood=1.0)
+
+    # Set a fixed random seed for reproducible test results
+    pm.rand = random.Random(42)
+
+    entities = [x for x in entities if pm.can_change(x)]
+    assert len(entities) == 1
+
+    # Use entity 13 which has a simpler structure
+    test_entity = entities[0]
+
+    # Verify the original code matches expected
+    expected = """func (up *UsagePool) Range(f func(key, value any) bool) {
+	up.RLock()
+	defer up.RUnlock()
+	for key, upv := range up.pool {
+		upv.RLock()
+		if upv.err != nil {
+			upv.RUnlock()
+			continue
+		}
+		val := upv.value
+		upv.RUnlock()
+		if !f(key, val) {
+			break
+		}
+	}
+}"""
+    assert test_entity.src_code == expected
