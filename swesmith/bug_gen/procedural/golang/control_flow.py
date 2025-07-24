@@ -206,13 +206,13 @@ class ControlShuffleLinesModifier(GolangProceduralModifier):
             shuffled_indices = list(range(len(statements)))
             self.rand.shuffle(shuffled_indices)
 
-            # Extract statement texts with their exact formatting
+            # Extract just the statement content (without trailing whitespace)
             statement_texts = []
             for stmt in statements:
                 stmt_text = source_code[stmt.start_byte : stmt.end_byte]
                 statement_texts.append(stmt_text)
 
-            # Create shuffled statements
+            # Create shuffled statements with proper newlines
             shuffled_texts = [statement_texts[i] for i in shuffled_indices]
 
             # Find the positions of the first and last statements
@@ -220,8 +220,16 @@ class ControlShuffleLinesModifier(GolangProceduralModifier):
                 first_stmt_start = statements[0].start_byte
                 last_stmt_end = statements[-1].end_byte
 
-                # Replace just the statements part, preserving the rest
-                new_statements_content = "".join(shuffled_texts)
+                # Get the original indentation by looking at the first statement's line
+                first_line_start = source_code.rfind("\n", 0, first_stmt_start) + 1
+                original_indent = source_code[first_line_start:first_stmt_start]
+
+                # Reconstruct with proper formatting - each statement on its own line with original indentation
+                new_statements_content = ""
+                for i, stmt_text in enumerate(shuffled_texts):
+                    if i > 0:  # Add newline before each statement except the first
+                        new_statements_content += "\n" + original_indent
+                    new_statements_content += stmt_text
 
                 modified_source = (
                     modified_source[:first_stmt_start]

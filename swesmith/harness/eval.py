@@ -11,6 +11,7 @@ Usage: python -m swesmith.harness.eval \
 import argparse
 import json
 import os
+import threading
 
 from datasets import load_dataset
 from swebench.harness.constants import (
@@ -22,10 +23,14 @@ from swebench.harness.constants import (
     RUN_EVALUATION_LOG_DIR,
 )
 from swebench.harness.docker_build import close_logger
-from swebench.harness.utils import run_threadpool
+from tqdm.auto import tqdm
 from swesmith.constants import HF_DATASET, KEY_PATCH, KEY_TIMED_OUT
 from swesmith.harness.grading import get_eval_report
-from swesmith.harness.utils import matches_instance_filter, run_patch_in_container
+from swesmith.harness.utils import (
+    matches_instance_filter,
+    run_patch_in_container,
+    run_threadpool,
+)
 from swesmith.profiles import registry
 
 
@@ -35,9 +40,14 @@ def run_evaluation(
     run_id: str,
     f2p_only: bool = False,
     is_gold: bool = False,
-) -> None:
+) -> dict:
     """
     Run per-prediction evaluation
+
+    Returns:
+        dict: Result with keys 'status' and 'resolved'
+        status can be: 'timeout', 'error', 'completed'
+        resolved: bool indicating if the instance was resolved
     """
     instance_id = pred[KEY_INSTANCE_ID]
     rp = registry.get_from_inst(instance)
@@ -61,12 +71,12 @@ def run_evaluation(
         with open(report_path, "w") as f:
             f.write(json.dumps({KEY_TIMED_OUT: True, "timeout": rp.timeout}, indent=4))
         close_logger(logger)
-        return
+        return {"status": "timeout", "resolved": False}
 
     if not test_log_path.exists():
         logger.info(f"Failed to get report for {instance_id}.")
         close_logger(logger)
-        return
+        return {"status": "error", "resolved": False}
 
     # Get report from test output
     logger.info(f"Grading answer for {instance_id}...")
@@ -78,6 +88,10 @@ def run_evaluation(
     with open(report_path, "w") as f:
         f.write(json.dumps(report, indent=4))
     close_logger(logger)
+
+    # Return result based on the report
+    resolved = report.get("resolved", False)
+    return {"status": "completed", "resolved": resolved}
 
 
 def main(
@@ -187,7 +201,31 @@ def main(
     if report_only:
         print("Regenerating reports only (skipping eval run)")
     else:
-        run_threadpool(run_evaluation, payloads, workers)
+        # Initialize progress bar and stats
+        stats = {"✓": 0, "✖": 0, "timeout": 0, "error": 0}
+        pbar = tqdm(total=len(payloads), desc="Evaluation", postfix=stats)
+        lock = threading.Lock()
+
+        # Create a wrapper function for threadpool that updates progress bar
+        def run_evaluation_with_progress(*args):
+            result = run_evaluation(*args)
+            with lock:
+                if result["status"] == "completed":
+                    if result["resolved"]:
+                        stats["✓"] += 1
+                    else:
+                        stats["✖"] += 1
+                else:
+                    stats[result["status"]] += 1
+                pbar.set_postfix(stats)
+                pbar.update()
+            return result
+
+        run_threadpool(run_evaluation_with_progress, payloads, workers)
+
+        # Close progress bar
+        pbar.close()
+
         print("All instances run.")
 
     # Get number of task instances resolved

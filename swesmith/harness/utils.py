@@ -2,6 +2,7 @@ import docker
 import fnmatch
 import traceback
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from docker.models.containers import Container
 from logging import Logger
 from pathlib import Path
@@ -249,3 +250,59 @@ def run_patch_in_container(
         # Remove instance container + image, close logger
         cleanup_container(client, container, logger)
         return logger, False
+
+
+def run_threadpool(func, payloads, max_workers):
+    """
+    Run a function with a list of payloads using ThreadPoolExecutor.
+
+    Args:
+        func: Function to run for each payload
+        payloads: List of payloads to process
+        max_workers: Maximum number of worker threads
+
+    Returns:
+        tuple: (succeeded, failed) lists of payloads
+    """
+    if max_workers <= 0:
+        return run_sequential(func, payloads)
+
+    succeeded, failed = [], []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Create a future for running each instance
+        futures = {executor.submit(func, *payload): payload for payload in payloads}
+        # Wait for each future to complete
+        for future in as_completed(futures):
+            try:
+                # Check if instance ran successfully
+                future.result()
+                succeeded.append(futures[future])
+            except Exception as e:
+                print(f"{type(e)}: {e}")
+                traceback.print_exc()
+                failed.append(futures[future])
+
+    return succeeded, failed
+
+
+def run_sequential(func, payloads):
+    """
+    Run a function with a list of payloads sequentially.
+
+    Args:
+        func: Function to run for each payload
+        payloads: List of payloads to process
+
+    Returns:
+        tuple: (succeeded, failed) lists of payloads
+    """
+    succeeded, failed = [], []
+    for payload in payloads:
+        try:
+            func(*payload)
+            succeeded.append(payload)
+        except Exception:
+            traceback.print_exc()
+            failed.append(payload)
+
+    return succeeded, failed
