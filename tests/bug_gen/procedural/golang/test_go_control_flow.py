@@ -3,7 +3,6 @@ from swesmith.bug_gen.procedural.golang.control_flow import (
     ControlIfElseInvertModifier,
     ControlShuffleLinesModifier,
 )
-import random
 
 
 def test_control_if_else_invert(test_file_go_caddy_usagepool):
@@ -51,35 +50,15 @@ def test_control_if_else_invert(test_file_go_caddy_usagepool):
     assert modified.rewrite == expected
 
 
-def test_control_shuffle_lines(test_file_go_caddy_usagepool):
+def test_control_shuffle_lines(test_file_go_caddy_listeners):
     entities = []
-    get_entities_from_file_go(entities, test_file_go_caddy_usagepool)
+    get_entities_from_file_go(entities, test_file_go_caddy_listeners)
     pm = ControlShuffleLinesModifier(likelihood=1.0)
-
-    # Set a fixed random seed for reproducible test results
-    pm.rand = random.Random(42)
-
     entities = [x for x in entities if pm.can_change(x)]
-    assert len(entities) == 1
-
-    # Use entity 13 which has a simpler structure
+    assert len(entities) == 3
     test_entity = entities[0]
+    modified = pm.modify(test_entity)
 
     # Verify the original code matches expected
-    expected = """func (up *UsagePool) Range(f func(key, value any) bool) {
-	up.RLock()
-	defer up.RUnlock()
-	for key, upv := range up.pool {
-		upv.RLock()
-		if upv.err != nil {
-			upv.RUnlock()
-			continue
-		}
-		val := upv.value
-		upv.RUnlock()
-		if !f(key, val) {
-			break
-		}
-	}
-}"""
-    assert test_entity.src_code == expected
+    expected = """func (na NetworkAddress) Expand() []NetworkAddress {\n\taddrs := make([]NetworkAddress, size)\n\tsize := na.PortRangeSize()\n\tfor portOffset := uint(0); portOffset < size; portOffset++ {\n\t\taddrs[portOffset] = na.At(portOffset)\n\t}\n\treturn addrs\n}"""
+    assert modified.rewrite == expected

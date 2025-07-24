@@ -1,16 +1,14 @@
 import libcst
 
+from swesmith.bug_gen.procedural.base import CommonPMs
 from swesmith.bug_gen.procedural.python.base import PythonProceduralModifier
 from swesmith.constants import CodeProperty
 
 
 class RemoveLoopModifier(PythonProceduralModifier):
-    explanation: str = "There is one or more missing loops that is causing the bug."
-    name: str = "func_pm_remove_loop"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_LOOP,
-    ]
+    explanation: str = CommonPMs.REMOVE_LOOP.explanation
+    name: str = CommonPMs.REMOVE_LOOP.name
+    conditions: list = CommonPMs.REMOVE_LOOP.conditions
 
     class Transformer(PythonProceduralModifier.Transformer):
         def leave_For(self, original_node, updated_node):
@@ -21,12 +19,9 @@ class RemoveLoopModifier(PythonProceduralModifier):
 
 
 class RemoveConditionalModifier(PythonProceduralModifier):
-    explanation: str = "There is one or more missing conditionals that causes the bug."
-    name: str = "func_pm_remove_cond"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_IF,
-    ]
+    explanation: str = CommonPMs.REMOVE_CONDITIONAL.explanation
+    name: str = CommonPMs.REMOVE_CONDITIONAL.name
+    conditions: list = CommonPMs.REMOVE_CONDITIONAL.conditions
 
     class Transformer(PythonProceduralModifier.Transformer):
         def leave_If(self, original_node, updated_node):
@@ -34,12 +29,9 @@ class RemoveConditionalModifier(PythonProceduralModifier):
 
 
 class RemoveAssignModifier(PythonProceduralModifier):
-    explanation: str = "There is likely a missing assignment in the code."
-    name: str = "func_pm_remove_assign"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_ASSIGNMENT,
-    ]
+    explanation: str = CommonPMs.REMOVE_ASSIGNMENT.explanation
+    name: str = CommonPMs.REMOVE_ASSIGNMENT.name
+    conditions: list = CommonPMs.REMOVE_ASSIGNMENT.conditions
 
     class Transformer(PythonProceduralModifier.Transformer):
         def leave_Assign(self, original_node, updated_node):

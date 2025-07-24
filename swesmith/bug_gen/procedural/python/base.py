@@ -8,9 +8,6 @@ from swesmith.constants import BugRewrite, CodeEntity
 class PythonProceduralModifier(ProceduralModifier, ABC):
     """Base class for Python-specific procedural modifications using LibCST."""
 
-    # Allow subclasses to customize retry behavior
-    max_attempts: int = 5
-
     class Transformer(libcst.CSTTransformer):
         """Nested LibCST transformer that has access to parent modifier."""
 

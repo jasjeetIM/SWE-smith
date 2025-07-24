@@ -1,18 +1,13 @@
 import libcst
 
+from swesmith.bug_gen.procedural.base import CommonPMs
 from swesmith.bug_gen.procedural.python.base import PythonProceduralModifier
-from swesmith.constants import CodeProperty
 
 
 class ControlIfElseInvertModifier(PythonProceduralModifier):
-    explanation: str = (
-        "The if-else conditions may be out of order, or the bodies are inverted."
-    )
-    name: str = "func_pm_ctrl_invert_if"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_IF_ELSE,
-    ]
+    explanation: str = CommonPMs.CONTROL_IF_ELSE_INVERT.explanation
+    name: str = CommonPMs.CONTROL_IF_ELSE_INVERT.name
+    conditions: list = CommonPMs.CONTROL_IF_ELSE_INVERT.conditions
     min_complexity: int = 5
 
     class Transformer(PythonProceduralModifier.Transformer):
@@ -46,12 +41,9 @@ class ControlIfElseInvertModifier(PythonProceduralModifier):
 
 
 class ControlShuffleLinesModifier(PythonProceduralModifier):
-    explanation: str = "The lines inside a function may be out of order."
-    name: str = "func_pm_ctrl_shuffle"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_LOOP,
-    ]
+    explanation: str = CommonPMs.CONTROL_SHUFFLE_LINES.explanation
+    name: str = CommonPMs.CONTROL_SHUFFLE_LINES.name
+    conditions: list = CommonPMs.CONTROL_SHUFFLE_LINES.conditions
     max_complexity: int = 10
 
     class Transformer(PythonProceduralModifier.Transformer):

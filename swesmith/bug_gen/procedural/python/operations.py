@@ -1,7 +1,7 @@
 import libcst
 
+from swesmith.bug_gen.procedural.base import CommonPMs
 from swesmith.bug_gen.procedural.python.base import PythonProceduralModifier
-from swesmith.constants import CodeProperty
 
 
 FLIPPED_OPERATORS = {
@@ -34,12 +34,9 @@ FLIPPED_OPERATORS = {
 
 
 class OperationChangeModifier(PythonProceduralModifier):
-    explanation: str = "The operations in an expressions are likely incorrect."
-    name: str = "func_pm_op_change"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_BINARY_OP,
-    ]
+    explanation: str = CommonPMs.OPERATION_CHANGE.explanation
+    name: str = CommonPMs.OPERATION_CHANGE.name
+    conditions: list = CommonPMs.OPERATION_CHANGE.conditions
 
     class Transformer(PythonProceduralModifier.Transformer):
         def leave_BinaryOperation(self, original_node, updated_node):
@@ -90,12 +87,9 @@ class OperationChangeModifier(PythonProceduralModifier):
 
 
 class OperationFlipOperatorModifier(PythonProceduralModifier):
-    explanation: str = "The operators in an expression are likely incorrect."
-    name: str = "func_pm_flip_operators"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_BINARY_OP,
-    ]
+    explanation: str = CommonPMs.OPERATION_FLIP_OPERATOR.explanation
+    name: str = CommonPMs.OPERATION_FLIP_OPERATOR.name
+    conditions: list = CommonPMs.OPERATION_FLIP_OPERATOR.conditions
 
     class Transformer(PythonProceduralModifier.Transformer):
         def _flip_operator(self, updated_node):
@@ -117,12 +111,9 @@ class OperationFlipOperatorModifier(PythonProceduralModifier):
 
 
 class OperationSwapOperandsModifier(PythonProceduralModifier):
-    explanation: str = "The operands in an expression are likely in the wrong order."
-    name: str = "func_pm_op_swap"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_BINARY_OP,
-    ]
+    explanation: str = CommonPMs.OPERATION_SWAP_OPERANDS.explanation
+    name: str = CommonPMs.OPERATION_SWAP_OPERANDS.name
+    conditions: list = CommonPMs.OPERATION_SWAP_OPERANDS.conditions
 
     class Transformer(PythonProceduralModifier.Transformer):
         def leave_BinaryOperation(self, original_node, updated_node):
@@ -141,14 +132,9 @@ class OperationSwapOperandsModifier(PythonProceduralModifier):
 
 
 class OperationBreakChainsModifier(PythonProceduralModifier):
-    explanation: str = (
-        "There are expressions or mathemtical operations that are likely incomplete."
-    )
-    name: str = "func_pm_op_break_chains"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_BINARY_OP,
-    ]
+    explanation: str = CommonPMs.OPERATION_BREAK_CHAINS.explanation
+    name: str = CommonPMs.OPERATION_BREAK_CHAINS.name
+    conditions: list = CommonPMs.OPERATION_BREAK_CHAINS.conditions
 
     class Transformer(PythonProceduralModifier.Transformer):
         def leave_BinaryOperation(self, original_node, updated_node):
@@ -165,12 +151,9 @@ class OperationBreakChainsModifier(PythonProceduralModifier):
 
 
 class OperationChangeConstantsModifier(PythonProceduralModifier):
-    explanation: str = "The constants in an expression might be incorrect."
-    name: str = "func_pm_op_change_const"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_BINARY_OP,
-    ]
+    explanation: str = CommonPMs.OPERATION_CHANGE_CONSTANTS.explanation
+    name: str = CommonPMs.OPERATION_CHANGE_CONSTANTS.name
+    conditions: list = CommonPMs.OPERATION_CHANGE_CONSTANTS.conditions
 
     class Transformer(PythonProceduralModifier.Transformer):
         def leave_BinaryOperation(self, original_node, updated_node):

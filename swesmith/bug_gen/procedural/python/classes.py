@@ -1,13 +1,13 @@
 import libcst
 
+from swesmith.bug_gen.procedural.base import CommonPMs
 from swesmith.bug_gen.procedural.python.base import PythonProceduralModifier
-from swesmith.constants import CodeProperty
 
 
 class ClassRemoveBasesModifier(PythonProceduralModifier):
-    explanation: str = "The base class has been removed from the class definition."
-    name: str = "func_pm_class_rm_base"
-    conditions: list = [CodeProperty.IS_CLASS, CodeProperty.HAS_PARENT]
+    explanation: str = CommonPMs.CLASS_REMOVE_BASES.explanation
+    name: str = CommonPMs.CLASS_REMOVE_BASES.name
+    conditions: list = CommonPMs.CLASS_REMOVE_BASES.conditions
     min_complexity: int = 10
 
     class Transformer(PythonProceduralModifier.Transformer):
@@ -23,9 +23,9 @@ class ClassRemoveBasesModifier(PythonProceduralModifier):
 
 
 class ClassShuffleMethodsModifier(PythonProceduralModifier):
-    explanation: str = "The methods in a class have been shuffled."
-    name: str = "func_pm_class_shuffle_funcs"
-    conditions: list = [CodeProperty.IS_CLASS]
+    explanation: str = CommonPMs.CLASS_SHUFFLE_METHODS.explanation
+    name: str = CommonPMs.CLASS_SHUFFLE_METHODS.name
+    conditions: list = CommonPMs.CLASS_SHUFFLE_METHODS.conditions
     min_complexity: int = 10
 
     class Transformer(PythonProceduralModifier.Transformer):
@@ -46,11 +46,9 @@ class ClassShuffleMethodsModifier(PythonProceduralModifier):
 
 
 class ClassRemoveFuncsModifier(PythonProceduralModifier):
-    explanation: str = (
-        "Method(s) and their reference(s) have been removed from the class."
-    )
-    name: str = "func_pm_class_rm_funcs"
-    conditions: list = [CodeProperty.IS_CLASS]
+    explanation: str = CommonPMs.CLASS_REMOVE_FUNCS.explanation
+    name: str = CommonPMs.CLASS_REMOVE_FUNCS.name
+    conditions: list = CommonPMs.CLASS_REMOVE_FUNCS.conditions
     min_complexity: int = 10
 
     class Transformer(PythonProceduralModifier.Transformer):

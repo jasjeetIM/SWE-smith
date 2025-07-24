@@ -1,19 +1,17 @@
 import tree_sitter_go as tsgo
 
+from swesmith.bug_gen.procedural.base import CommonPMs
 from swesmith.bug_gen.procedural.golang.base import GolangProceduralModifier
-from swesmith.constants import BugRewrite, CodeEntity, CodeProperty
+from swesmith.constants import BugRewrite, CodeEntity
 from tree_sitter import Language, Parser
 
 GO_LANGUAGE = Language(tsgo.language())
 
 
 class RemoveLoopModifier(GolangProceduralModifier):
-    explanation: str = "There is one or more missing loops that is causing the bug."
-    name: str = "func_pm_remove_loop"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_LOOP,
-    ]
+    explanation: str = CommonPMs.REMOVE_LOOP.explanation
+    name: str = CommonPMs.REMOVE_LOOP.name
+    conditions: list = CommonPMs.REMOVE_LOOP.conditions
 
     def modify(self, code_entity: CodeEntity) -> BugRewrite:
         """Remove loop statements from the Go code."""
@@ -65,12 +63,9 @@ class RemoveLoopModifier(GolangProceduralModifier):
 
 
 class RemoveConditionalModifier(GolangProceduralModifier):
-    explanation: str = "There is one or more missing conditionals that causes the bug."
-    name: str = "func_pm_remove_cond"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_IF,
-    ]
+    explanation: str = CommonPMs.REMOVE_CONDITIONAL.explanation
+    name: str = CommonPMs.REMOVE_CONDITIONAL.name
+    conditions: list = CommonPMs.REMOVE_CONDITIONAL.conditions
 
     def modify(self, code_entity: CodeEntity) -> BugRewrite:
         """Remove conditional statements from the Go code."""
@@ -122,12 +117,9 @@ class RemoveConditionalModifier(GolangProceduralModifier):
 
 
 class RemoveAssignModifier(GolangProceduralModifier):
-    explanation: str = "There is likely a missing assignment in the code."
-    name: str = "func_pm_remove_assign"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_ASSIGNMENT,
-    ]
+    explanation: str = CommonPMs.REMOVE_ASSIGNMENT.explanation
+    name: str = CommonPMs.REMOVE_ASSIGNMENT.name
+    conditions: list = CommonPMs.REMOVE_ASSIGNMENT.conditions
 
     def modify(self, code_entity: CodeEntity) -> BugRewrite:
         """Remove assignment statements from the Go code."""

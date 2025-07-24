@@ -1,21 +1,17 @@
 import tree_sitter_go as tsgo
 
+from swesmith.bug_gen.procedural.base import CommonPMs
 from swesmith.bug_gen.procedural.golang.base import GolangProceduralModifier
-from swesmith.constants import BugRewrite, CodeEntity, CodeProperty
+from swesmith.constants import BugRewrite, CodeEntity
 from tree_sitter import Language, Parser
 
 GO_LANGUAGE = Language(tsgo.language())
 
 
 class ControlIfElseInvertModifier(GolangProceduralModifier):
-    explanation: str = (
-        "The if-else bodies are swapped while keeping the condition the same."
-    )
-    name: str = "func_pm_ctrl_invert_if"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_IF_ELSE,
-    ]
+    explanation: str = CommonPMs.CONTROL_IF_ELSE_INVERT.explanation
+    name: str = CommonPMs.CONTROL_IF_ELSE_INVERT.name
+    conditions: list = CommonPMs.CONTROL_IF_ELSE_INVERT.conditions
     min_complexity: int = 5
 
     def modify(self, code_entity: CodeEntity) -> BugRewrite:
@@ -27,12 +23,19 @@ class ControlIfElseInvertModifier(GolangProceduralModifier):
         parser = Parser(GO_LANGUAGE)
         tree = parser.parse(bytes(code_entity.src_code, "utf8"))
 
-        # Find if-else statements to modify
-        modified_code = self._invert_if_else_statements(
-            code_entity.src_code, tree.root_node
-        )
+        changed = False
 
-        if modified_code == code_entity.src_code:
+        for _ in range(self.max_attempts):
+            # Find if-else statements to modify
+            modified_code = self._invert_if_else_statements(
+                code_entity.src_code, tree.root_node
+            )
+
+            if modified_code != code_entity.src_code:
+                changed = True
+                break
+
+        if not changed:
             return None
 
         return BugRewrite(
@@ -135,24 +138,17 @@ class ControlIfElseInvertModifier(GolangProceduralModifier):
 
 
 class ControlShuffleLinesModifier(GolangProceduralModifier):
-    explanation: str = "The lines inside a function may be out of order."
-    name: str = "func_pm_ctrl_shuffle"
-    conditions: list = [
-        CodeProperty.IS_FUNCTION,
-        CodeProperty.HAS_LOOP,
-    ]
+    explanation: str = CommonPMs.CONTROL_SHUFFLE_LINES.explanation
+    name: str = CommonPMs.CONTROL_SHUFFLE_LINES.name
+    conditions: list = CommonPMs.CONTROL_SHUFFLE_LINES.conditions
     max_complexity: int = 10
 
     def modify(self, code_entity: CodeEntity) -> BugRewrite:
         """Apply line shuffling to the Go function body."""
-        if not self.flip():
-            return None
-
-        # Parse the code
         parser = Parser(GO_LANGUAGE)
         tree = parser.parse(bytes(code_entity.src_code, "utf8"))
 
-        # Find function declarations to modify
+        # Shuffle lines in function bodies
         modified_code = self._shuffle_function_statements(
             code_entity.src_code, tree.root_node
         )
@@ -171,7 +167,7 @@ class ControlShuffleLinesModifier(GolangProceduralModifier):
         modifications = []
 
         def collect_function_declarations(n):
-            if n.type == "function_declaration":
+            if n.type in ["function_declaration", "method_declaration"]:
                 # Find the function body (block statement)
                 body_block = None
                 for child in n.children:
@@ -179,13 +175,18 @@ class ControlShuffleLinesModifier(GolangProceduralModifier):
                         body_block = child
                         break
 
-                if body_block and self.flip():
-                    # Get the statements inside the block
+                if body_block:
+                    # Get the statements inside the block (excluding braces)
                     statements = []
                     for child in body_block.children:
                         # Skip opening and closing braces, collect actual statements
                         if child.type not in ["{", "}"]:
                             statements.append(child)
+
+                    # Debug: Print the number of statements found
+                    # print(f"DEBUG: Found {len(statements)} statements in function/method")
+                    # for i, stmt in enumerate(statements):
+                    #     print(f"  Statement {i}: {stmt.type}")
 
                     # Only shuffle if there are at least 2 statements
                     if len(statements) >= 2:
@@ -201,40 +202,45 @@ class ControlShuffleLinesModifier(GolangProceduralModifier):
 
         # Apply modifications from end to start to preserve byte offsets
         modified_source = source_code
-        for _, statements in reversed(modifications):
-            # Create a shuffled copy of the statements
+        for body_block, statements in reversed(modifications):
+            # Create shuffled indices
             shuffled_indices = list(range(len(statements)))
             self.rand.shuffle(shuffled_indices)
 
-            # Extract just the statement content (without trailing whitespace)
+            # Check if shuffling actually changed the order
+            if shuffled_indices == list(range(len(statements))):
+                # If by chance we got the same order, force a different shuffle
+                if len(statements) >= 2:
+                    # Simple swap of first two elements to guarantee change
+                    shuffled_indices[0], shuffled_indices[1] = (
+                        shuffled_indices[1],
+                        shuffled_indices[0],
+                    )
+
+            # Extract statement texts and shuffle them
             statement_texts = []
             for stmt in statements:
                 stmt_text = source_code[stmt.start_byte : stmt.end_byte]
                 statement_texts.append(stmt_text)
 
-            # Create shuffled statements with proper newlines
             shuffled_texts = [statement_texts[i] for i in shuffled_indices]
 
-            # Find the positions of the first and last statements
-            if statements:
-                first_stmt_start = statements[0].start_byte
-                last_stmt_end = statements[-1].end_byte
+            # Find the range to replace (from first statement to last statement)
+            first_stmt_start = statements[0].start_byte
+            last_stmt_end = statements[-1].end_byte
 
-                # Get the original indentation by looking at the first statement's line
-                first_line_start = source_code.rfind("\n", 0, first_stmt_start) + 1
-                original_indent = source_code[first_line_start:first_stmt_start]
+            # Get indentation from the first statement
+            line_start = source_code.rfind("\n", 0, first_stmt_start) + 1
+            indent = source_code[line_start:first_stmt_start]
 
-                # Reconstruct with proper formatting - each statement on its own line with original indentation
-                new_statements_content = ""
-                for i, stmt_text in enumerate(shuffled_texts):
-                    if i > 0:  # Add newline before each statement except the first
-                        new_statements_content += "\n" + original_indent
-                    new_statements_content += stmt_text
+            # Join shuffled statements with proper newlines and indentation
+            new_content = ("\n" + indent).join(shuffled_texts)
 
-                modified_source = (
-                    modified_source[:first_stmt_start]
-                    + new_statements_content
-                    + modified_source[last_stmt_end:]
-                )
+            # Replace the original statements with shuffled ones
+            modified_source = (
+                modified_source[:first_stmt_start]
+                + new_content
+                + modified_source[last_stmt_end:]
+            )
 
         return modified_source
