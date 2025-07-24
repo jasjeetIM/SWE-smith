@@ -145,20 +145,6 @@ class Cli4c47bad6(GoProfile):
 
 
 @dataclass
-class Concourse24abde66(GoProfile):
-    owner: str = "concourse"
-    repo: str = "concourse"
-    commit: str = "24abde66ec91853eebdcf273a064e31accae9f25"
-
-
-@dataclass
-class Etcd721ba5bc(GoProfile):
-    owner: str = "etcd-io"
-    repo: str = "etcd"
-    commit: str = "721ba5bc2489e0588b224a099a0fa369f166b4e5"
-
-
-@dataclass
 class Frp61330d4d(GoProfile):
     owner: str = "fatedier"
     repo: str = "frp"
@@ -177,20 +163,6 @@ class Hugocfc8d315(GoProfile):
     owner: str = "gohugoio"
     repo: str = "hugo"
     commit: str = "cfc8d315b4f1a21c3daed0f9e78b7edb19f298d1"
-
-
-@dataclass
-class Grpcaa57e6af(GoProfile):
-    owner: str = "grpc"
-    repo: str = "grpc-go"
-    commit: str = "aa57e6af6cbc8e1285315b338b092420f014c732"
-
-
-@dataclass
-class Istio8c687844(GoProfile):
-    owner: str = "istio"
-    repo: str = "istio"
-    commit: str = "8c687844a88bfc4a7d4f998e4c950cd9243334c3"
 
 
 @dataclass
@@ -219,13 +191,6 @@ class Addressec203a4f(GoProfile):
     owner: str = "bojanz"
     repo: str = "address"
     commit: str = "ec203a4f7f569c03a0f83e2e749b63947481fe4c"
-
-
-@dataclass
-class Prometheus74aca682(GoProfile):
-    owner: str = "prometheus"
-    repo: str = "prometheus"
-    commit: str = "74aca682b77d66f5761bd68459f3b570ec34ce2d"
 
 
 @dataclass
@@ -278,13 +243,6 @@ class Goprompt82a91227(GoProfile):
 
 
 @dataclass
-class Progressbar(GoProfile):
-    owner: str = "schollz"
-    repo: str = "progressbar"
-    commit: str = "1a5d48397714b88f8a54612e40514f2fb5e44127"
-
-
-@dataclass
 class Accounting(GoProfile):
     owner: str = "leekchan"
     repo: str = "accounting"
@@ -331,13 +289,6 @@ class Cobra(GoProfile):
     owner: str = "spf13"
     repo: str = "cobra"
     commit: str = "6dec1ae26659a130bdb4c985768d1853b0e1bc06"
-
-
-@dataclass
-class Dnote(GoProfile):
-    owner: str = "dnote"
-    repo: str = "dnote"
-    commit: str = "895dcaa59f1c649f0a5d5703e08ae6a96304d03d"
 
 
 @dataclass
@@ -578,13 +529,6 @@ class Buntdb(GoProfile):
 
 
 @dataclass
-class Column(GoProfile):
-    owner: str = "kelindar"
-    repo: str = "column"
-    commit: str = "b35d478cda58087266d177b265bc8b29859c721e"
-
-
-@dataclass
 class Diskv(GoProfile):
     owner: str = "peterbourgon"
     repo: str = "diskv"
@@ -655,24 +599,10 @@ class Avro(GoProfile):
 
 
 @dataclass
-class Goose(GoProfile):
-    owner: str = "pressly"
-    repo: str = "goose"
-    commit: str = "f2b5a9d8bcd75d257ff9b484e79e2edb94dd0b8c"
-
-
-@dataclass
 class Skeema(GoProfile):
     owner: str = "skeema"
     repo: str = "skeema"
     commit: str = "defb0097f48c8dfd2d239c6fff4259000fcfee59"
-
-
-@dataclass
-class Sqlmigrate(GoProfile):
-    owner: str = "rubenv"
-    repo: str = "sql-migrate"
-    commit: str = "563a2f031824f380dfadda9a5886679d883420f3"
 
 
 @dataclass
@@ -836,22 +766,6 @@ class Revive(GoProfile):
     owner: str = "mgechev"
     repo: str = "revive"
     commit: str = "03e81029a89342ec7107a3655241f479065e208d"
-
-
-@dataclass
-class PhpParser(GoProfile):
-    owner: str = "z7zmey"
-    repo: str = "php-parser"
-    commit: str = "367eff9de651fb9479c98f4f3741db3195e549ad"
-
-
-@dataclass
-class GolangCILint(GoProfile):
-    owner: str = "golangci"
-    repo: str = "golangci-lint"
-    commit: str = "4fe2e59ba9cbe6022d35edac72f671eff3f07354"
-    timeout: int = 120
-    timeout_ref: int = 120
 
 
 @dataclass
