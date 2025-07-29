@@ -219,6 +219,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                 'git config user.name "swesmith"',
                 'git config user.email "swesmith@anon.com"',
                 "rm -rf .github/workflows",
+                "rm -rf .github/dependabot.y*",
                 "git add .",
                 "git commit --no-gpg-sign -m 'Initial commit'",
                 "git branch -M main",
