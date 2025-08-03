@@ -75,9 +75,9 @@ Check out [#116](https://github.com/SWE-bench/SWE-smith/pull/116) and [d8b20f3f]
 > }
 > 
 > for test_repos, test_set in [
->     (sb, "SWE-bench_Verified"),
->     (sbmm, "SWE-bench_Multimodal"),
->     (sbml, "SWE-bench_Multilingual"),
+>     (sb, "SWE-bench/SWE-bench_Verified"),
+>     (sbmm, "SWE-bench/SWE-bench_Multimodal"),
+>     (sbml, "SWE-bench/SWE-bench_Multilingual"),
 > ]:
 >     for repo in test_repos:
 >         if repo not in profiles:
