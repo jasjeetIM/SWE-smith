@@ -74,7 +74,7 @@ Contact Person: [John Yang](https://john-b-yang.github.io/), [Kilian Lieret](htt
 (Email: [johnby@stanford.edu](mailto:johnby@stanford.edu))
 
 ## 🪪 License
-CC-BY-4.0. Check `LICENSE` for more information.
+MIT. Check `LICENSE` for more information.
 
 ## ✍️ Citation
 
