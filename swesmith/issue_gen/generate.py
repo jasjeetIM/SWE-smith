@@ -86,12 +86,23 @@ class IssueGen:
         self.workers = workers
 
         self.config = yaml.safe_load(config_file.read_text())
-        self.model = self.config.get("model", "openai/gpt-4o")
+        self.model = self.config.get("model", "openai/gpt-4o-mini")
         settings = self.config.get("settings", {})
         self.n_instructions = settings.get("n_instructions", 1)
         self.max_var_tokens = settings.get("max_var_tokens", 10_000)
 
-        data_smith = [x for x in load_dataset(HF_DATASET, split="train")]
+        # Load the baseline SWE-smith HF dataset if possible (used to avoid duplicating problem statements)
+        try:
+            data_smith = [x for x in load_dataset(HF_DATASET, split="train")]
+        except Exception as e:
+            logger.warning(
+                "Couldn't load %s (%s). Continuing offline with no baseline.",
+                HF_DATASET,
+                type(e).__name__,
+            )
+            data_smith = []
+
+        # Load our working dataset (gather.json list or HF split)
         self.dataset = (
             data_smith
             if dataset_path == HF_DATASET
@@ -99,7 +110,7 @@ class IssueGen:
         )
         logger.info(f"Loaded {len(self.dataset)} instances from {dataset_path}")
 
-        # Filter out instances that already have problem statements in HF dataset
+        # Filter out instances that already have problem statements in the HF baseline
         existing_problems = {
             d["instance_id"] for d in data_smith if d.get("problem_statement")
         }
@@ -110,7 +121,7 @@ class IssueGen:
             f"Found {len(self.dataset)} instances without existing problem statements"
         )
 
-        # Further filter based on other criteria
+        # Further filter based on other criteria / cached outputs
         self.dataset = sorted(
             [
                 x
@@ -131,7 +142,17 @@ class IssueGen:
             raise ValueError(
                 "Must be called with the result of swesmith.harness.gather, not the _all_patches.json file"
             )
-        self.swebv = load_dataset("princeton-nlp/SWE-bench_Verified", split="test")
+
+        # Optional: reference issues from SWE-bench Verified for few-shot prompting.
+        try:
+            self.swebv = load_dataset("princeton-nlp/SWE-bench_Verified", split="test")
+        except Exception as e:
+            logger.warning(
+                "Couldn't load %s (%s). Continuing without demonstrations.",
+                "princeton-nlp/SWE-bench_Verified",
+                type(e).__name__,
+            )
+            self.swebv = None
 
     def _should_do_instance(
         self, instance: dict, instance_ids: list | None, redo_existing: bool, model: str
@@ -152,15 +173,24 @@ class IssueGen:
         return False
 
     def get_test_output(self, instance: dict) -> str:
-        rp = registry.get_from_inst(instance)
+        # If there is no registered profile for this repo, skip trying to run tests
+        try:
+            rp = registry.get_from_inst(instance)
+        except KeyError:
+            logger.warning(
+                "No profile for %s; skipping test execution for issue text.",
+                instance.get("repo"),
+            )
+            return ""
 
-        # Get execution output from running pytest for this instance (from validation step)
+        # Path where harness.gather stores test output for this instance
         test_output_path = (
             LOG_DIR_RUN_VALIDATION
             / instance["repo"].split("/")[-1]
             / instance[KEY_INSTANCE_ID]
             / LOG_TEST_OUTPUT
         )
+        # If missing, attempt to run tests in container (best-effort)
         if not test_output_path.exists():
             run_patch_in_container(
                 instance,
@@ -199,18 +229,19 @@ class IssueGen:
         return test_funcs, repos_to_remove
 
     def get_demo_issues(self) -> list[str]:
-        """
-        Get a list of demonstration issues from the config file.
-        """
+        """Get a list of demonstration issues from SWE-bench Verified (if available)."""
+        if not getattr(self, "swebv", None):
+            return []
         problem_statements = [
-            maybe_shorten(instance["problem_statement"], 2000, self.model)
-            for instance in self.swebv
-        ]  # type: ignore[index]
+            maybe_shorten(instance.get("problem_statement", ""), 2000, self.model)
+            for instance in self.swebv  # type: ignore[not-an-iterable]
+            if instance.get("problem_statement")
+        ]
         random.shuffle(problem_statements)
         return problem_statements
 
     def generate_issue(self, instance: dict) -> dict:
-        # Set up logging information
+        # Per-instance output directory
         repo = instance["repo"].split("/")[-1]
         inst_dir = LOG_DIR_ISSUE_GEN / repo
         inst_dir.mkdir(parents=True, exist_ok=True)
@@ -218,7 +249,7 @@ class IssueGen:
         output_file = inst_dir / f"{instance[KEY_INSTANCE_ID]}.json"
         output_file_exists = output_file.exists()
 
-        # Get a reference instance from SWE-bench
+        # Copy to avoid mutating the input
         instance_curr = instance.copy()
 
         def format_prompt(prompt: str | None, config: dict, candidate: dict) -> str:
@@ -239,12 +270,16 @@ class IssueGen:
         if output_file_exists:
             metadata = json.loads(output_file.read_text())
 
+        # --- ALWAYS produce a valid `messages` list ---
+        messages = None
+
         if "messages" not in metadata:
-            # Generate prompt
+            # Build fresh prompts
             messages = [
                 {"content": self.config["system"], "role": "system"},
             ]
-            if self.config["demonstration"]:
+
+            if self.config.get("demonstration"):
                 messages.append(
                     {
                         "content": format_prompt(
@@ -255,7 +290,13 @@ class IssueGen:
                         "role": "user",
                     },
                 )
-            test_funcs, repos_to_remove = self.get_test_functions(instance_curr)
+            # Best-effort test functions and output (okay to fail/skip)
+            try:
+                test_funcs, repos_to_remove = self.get_test_functions(instance_curr)
+            except Exception as e:
+                logger.warning("get_test_functions failed: %s", e)
+                test_funcs, repos_to_remove = [], []
+
             messages.append(
                 {
                     "content": format_prompt(
@@ -270,14 +311,26 @@ class IssueGen:
                     "role": "user",
                 },
             )
+
             metadata = {"messages": messages, "repos_to_remove": repos_to_remove}
             with open(output_file, "w") as f_:
                 json.dump(metadata, f_, indent=4)
         else:
-            # If messages already exist, get repos_to_remove from existing metadata
-            _, repos_to_remove = self.get_test_functions(instance_curr)
+            # Reuse existing prompts from disk; ensure it's a valid list
+            messages = metadata.get("messages") or []
+            if not messages:
+                # Fallback minimal system prompt if file was partially written
+                messages = [{"content": self.config["system"], "role": "system"}]
+                metadata["messages"] = messages
 
-        # Generate n_instructions completions containing problem statements
+            # Optionally refresh repos_to_remove; keep old if anything fails
+            try:
+                _, repos_to_remove = self.get_test_functions(instance_curr)
+            except Exception as e:
+                logger.warning("get_test_functions failed: %s", e)
+                repos_to_remove = metadata.get("repos_to_remove", [])
+
+        # --- Generate completions ---
         response = completion(
             model=self.model, messages=messages, n=self.n_instructions, temperature=0
         )
@@ -292,13 +345,11 @@ class IssueGen:
         ]
 
         if "responses" not in metadata:
-            # Initialize responses dict if it doesn't exist
             metadata["responses"] = {}
         elif self.model in metadata["responses"]:
-            # If responses for this model already exist, prepend them to the new ones
+            # Prepend old responses for this model
             problem_statements = metadata["responses"][self.model] + problem_statements
 
-        # Add/update the response for current model
         metadata["responses"][self.model] = problem_statements
 
         with open(output_file, "w") as f_:
@@ -326,29 +377,17 @@ class IssueGen:
         logger.info("Repository cleanup completed.")
 
     def run(self):
-        # Check if dataset is empty (initialization returned early)
+        # Nothing to do?
         if not hasattr(self, "dataset") or len(self.dataset) == 0:
             logger.info("No instances to process. Exiting.")
             return
 
-        stats = {
-            "💰": 0.0,
-            "⏭️": 0,
-            "❌": 0,
-            "✅": 0,
-        }
-
-        # Track repos to remove for cleanup
+        stats = {"💰": 0.0, "⏭️": 0, "❌": 0, "✅": 0}
         all_repos_to_remove = set()
 
-        # Create a thread pool and call generate_issue for each instance
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
-            futures = []
-            for instance in self.dataset:
-                future = executor.submit(self.generate_issue, instance)
-                futures.append(future)
+            futures = [executor.submit(self.generate_issue, inst) for inst in self.dataset]
 
-            # Wait for all futures to complete
             with logging_redirect_tqdm():
                 with tqdm(total=len(futures), desc="Generating issues") as pbar:
                     for future in as_completed(futures):
@@ -357,23 +396,22 @@ class IssueGen:
                         except KeyboardInterrupt:
                             raise
                         except Exception as e:
-                            logger.error(
-                                f"Error processing instance: {e}", exc_info=True
-                            )
+                            logger.error("Error processing instance: %s", e, exc_info=True)
                             stats["❌"] += 1
+                            pbar.set_postfix(stats, refresh=True)
+                            pbar.update(1)
                             continue
-                        if result["status"] == "skipped":
-                            stats["⏭️"] += 1
-                        elif result["status"] == "completed":
+
+                        if result.get("status") == "completed":
                             stats["✅"] += 1
-                            stats["💰"] += result["cost"]
-                            # Collect repos to remove
-                            if "repos_to_remove" in result:
-                                all_repos_to_remove.update(result["repos_to_remove"])
+                            stats["💰"] += result.get("cost", 0.0)
+                            all_repos_to_remove.update(result.get("repos_to_remove", []))
+                        else:
+                            stats["⏭️"] += 1
+
                         pbar.set_postfix(stats, refresh=True)
                         pbar.update(1)
 
-        # Cleanup cloned repositories
         self._cleanup_repos(all_repos_to_remove)
 
 

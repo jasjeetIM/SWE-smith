@@ -1,0 +1,24 @@
+# Minimal, solid defaults
+model: openai/gpt-4o-mini
+
+system: |
+  You are a software engineer writing a high-quality GitHub issue.
+  Describe the *symptom*, *context*, and *expected vs actual* behavior.
+  Do NOT reveal the patch or how the bug was injected.
+
+# (Optional) You can keep these blank; the script handles formatting.
+demonstration: ""
+instance: |
+  Repository: {{ repo }}
+  Base commit: {{ base_commit }}
+
+  Below is pytest output from running the failing tests against the buggy code.
+  Use it to infer a realistic, user-facing problem statement (not low-level internals).
+
+  === Pytest output (truncated) ===
+  {{ test_output }}
+
+settings:
+  n_instructions: 1
+  max_var_tokens: 10000
+parameters: {}
