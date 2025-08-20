@@ -1,0 +1,138 @@
+SWE-Smith end-to-end:
+=====================================================================================
+
+Prereqs:
+- You have cloned the `swe-smith` repo and installed its Python deps into a conda env named `swesmith`.
+- Your OpenAI key is exported, e.g.  export OPENAI_API_KEY=sk-...
+
+-------------------------------------------------------------------------------
+0) Activate the project environment
+-------------------------------------------------------------------------------
+# Put your shell into the Python env that has `swesmith` and the scripts
+conda activate swesmith
+
+-------------------------------------------------------------------------------
+1) (optional) One-time git clone behavior (map SSH to HTTPS)
+-------------------------------------------------------------------------------
+# Forces git@github.com: style clones to go over HTTPS (helps on networks that block SSH)
+git config --global url."https://github.com/".insteadof "git@github.com:"
+git config --global url."https://github.com/".insteadof "ssh://git@github.com/"
+git config --global url."https://github.com/".insteadof "git://github.com/"
+
+-------------------------------------------------------------------------------
+2) Set conda env
+-------------------------------------------------------------------------------
+conda create -y -n swesmith python=3.10
+conda activate swesmith
+pip install -e .
+python -m pip install -U pip setuptools wheel
+pip install -e . --timeout 180 --retries 10
+
+-------------------------------------------------------------------------------
+3) Build and verify per-repo “testbed” env (try_install_py)
+-------------------------------------------------------------------------------
+# Clones the repo at the commit, creates a conda env named `testbed`,
+# installs the package + pytest, exports an env.yml and a reproducible install.sh,
+# then cleans up the clone and removes the env (spec captured).
+python -m swesmith.build_repo.try_install_py "$REPO" configs/install_repo.sh --commit "$COMMIT"
+
+#Create a testbed to be used in 6)
+conda env create -n testbed -f "$ENVYML"
+
+# Outputs:
+#   logs/build_images/env/${REPO_KEY}/sweenv_${REPO_KEY}.yml
+#   logs/build_images/env/${REPO_KEY}/sweenv_${REPO_KEY}.sh
+
+-------------------------------------------------------------------------------
+4) Generate bugs with the LLM
+-------------------------------------------------------------------------------
+# Produces minimal diffs 
+python -m swesmith.bug_gen.llm.modify "$REPO_KEY" -c "$CONFIG" --model "$MODEL" -n 10 -m 1 -w 2
+
+# Gather patches into a json files
+python -m swesmith.bug_gen.collect_patches "logs/bug_gen/${REPO_KEY}" -n 10
+
+# Output of interest:
+#   $PATCH_JSON  (logs/bug_gen/${REPO_KEY}_all_patches_n10.json)
+
+-------------------------------------------------------------------------------
+5) Export to Hugging Face format (initial JSONL/Parquet)
+-------------------------------------------------------------------------------
+# Converts raw patches into HF-style rows (instance_id, repo, patch, etc.).
+python scripts/export_to_hf.py \
+  --patch-json "$PATCH_JSON" \
+  --out-jsonl "$HF_JSONL" \
+  --out-parquet "$HF_PQ" \
+  --repo-key "$REPO_KEY" \
+  --base-commit "$COMMIT" \
+  --image-name "$REPO_KEY"
+
+-------------------------------------------------------------------------------
+6) Compute PASS_TO_FAIL (baseline pass → failing after patch)
+-------------------------------------------------------------------------------
+# For each instance: clone at $COMMIT, run pytest in conda env `testbed` (created above),
+# apply the patch, re-run pytest, and record tests that regressed PASS→FAIL.
+
+python scripts/update_pass_to_fail.py \
+  --hf-in "$HF_JSONL" \
+  --hf-out "$HF_PTF" \
+  --repo "$REPO" \
+  --base-commit "$COMMIT" \
+  --env "testbed"
+
+# Output:
+#   $HF_PTF  (same rows as $HF_JSONL, now with PASS_TO_FAIL filled)
+
+-------------------------------------------------------------------------------
+7) Generate problem statements (issue_gen)
+-------------------------------------------------------------------------------
+# For each instance, builds a GitHub-style problem statement using LLM prompts.
+# Our patched issue_gen accepts JSONL and will normalize PASS_TO_FAIL for prompting.
+python -m swesmith.issue_gen.generate \
+  -d "$HF_PTF" \
+  -c "configs/issue_gen/ig_openai.yaml" \
+  -w 2 \
+  -r
+
+# Output (side files):
+#   logs/issue_gen/MonkeyType/<instance_id>.json  (contains `responses` keyed by model)
+
+-------------------------------------------------------------------------------
+8) Merge problem statements back into the HF data
+-------------------------------------------------------------------------------
+# Pulls problem statements from logs/issue_gen/MonkeyType/*.json and injects into the HF JSONL.
+python scripts/add_issues_to_hf.py \
+  --in-jsonl "$HF_PTF" \
+  --issues-dir "$ISSUE_DIR" \
+  --out-jsonl "$HF_PTF_PS" \
+  --prefer-model "openai/gpt-4o-mini" \
+  --out-parquet "$HF_PTF_PS_PQ" \
+  --verbose
+
+# Outputs:
+#   $HF_PTF_PS    (FINAL JSONL with PASS_TO_FAIL and problem_statement)
+#   $HF_PTF_PS_PQ (Parquet copy)
+
+-------------------------------------------------------------------------------
+9) Quick sanity checks (optional)
+-------------------------------------------------------------------------------
+# Row count
+wc -l "$HF_PTF_PS"
+
+# Show first row keys (requires jq)
+head -n1 "$HF_PTF_PS" | jq 'keys'
+
+# Count how many have PASS_TO_FAIL non-empty
+jq -r 'select(.PASS_TO_FAIL and (.PASS_TO_FAIL|length>0))' "$HF_PTF_PS" | wc -l
+
+# Spot-check an instance_id
+grep -m1 '"instance_id":' "$HF_PTF_PS"
+
+-------------------------------------------------------------------------------
+Notes
+-------------------------------------------------------------------------------
+- Ensure OPENAI_API_KEY is set for steps 4 and 7.
+- If your network blocks the Hugging Face Hub, issue_gen will still run but skip demos;
+  that’s fine for generating your own problem statements.
+- If update_pass_to_fail.py can’t find tests, verify the `testbed` env contains pytest
+  and the project is installed (try_install_py does both).

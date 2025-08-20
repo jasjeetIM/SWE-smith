@@ -73,7 +73,7 @@ def to_hf_rows(
             "instance_id": p.get("instance_id"),
             "repo": repo,
             "patch": patch_text,
-            "FAIL_TO_PASS": [],      # you can fill with failing test names later if you collect them
+            "PASS_TO_FAIL": [],      # you can fill with failing test names later if you collect them
             "PASS_TO_PASS": [],      # likewise for passing tests
             "created_at": created,
             "image_name": img,       # ties back to the environment/docker image name you built

@@ -28,7 +28,7 @@ from pathlib import Path
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from swebench.harness.constants import (
-    PASS_TO_FAIL,
+    FAIL_TO_PASS,
     KEY_INSTANCE_ID,
     LOG_TEST_OUTPUT,
 )
@@ -73,49 +73,6 @@ def maybe_shorten(text_str: str, max_tokens: int, model: str) -> str:
     return text_str[: max_tokens // 2] + "\n\n(...)\n\n" + text_str[-max_tokens // 2 :]
 
 
-def load_local_dataset(dataset_path: str) -> list[dict]:
-    """
-    Load a local dataset that may be either JSONL (one JSON object per line)
-    or a single JSON array file. Heuristics:
-      - If extension is .jsonl -> parse line-by-line.
-      - Else if first non-space char is '[' -> json array.
-      - Else fall back to JSONL line-by-line.
-    Also accepts a dict with 'instances' or 'data' keys.
-    """
-    p = Path(dataset_path)
-    text = p.read_text(encoding="utf-8")
-    stripped = text.lstrip()
-
-    # JSONL by extension
-    if p.suffix.lower() == ".jsonl":
-        return [json.loads(l) for l in text.splitlines() if l.strip()]
-
-    # JSON array by content
-    if stripped.startswith("["):
-        rows = json.loads(text)
-        if isinstance(rows, dict):
-            # extremely rare malformed case; normalize
-            rows = rows.get("instances") or rows.get("data") or [rows]
-        return rows
-
-    # Try parsing as a single JSON object with a list under a common key
-    try:
-        obj = json.loads(text)
-        if isinstance(obj, list):
-            return obj
-        if isinstance(obj, dict):
-            rows = obj.get("instances") or obj.get("data")
-            if rows is None:
-                # treat the dict itself as a single instance
-                rows = [obj]
-            return rows
-    except json.JSONDecodeError:
-        pass
-
-    # Fallback: JSONL line-by-line
-    return [json.loads(l) for l in text.splitlines() if l.strip()]
-
-
 class IssueGen:
     def __init__(
         self,
@@ -145,12 +102,12 @@ class IssueGen:
             )
             data_smith = []
 
-        # Load our working dataset (json/jsonl list or HF split)
-        if dataset_path == HF_DATASET:
-            self.dataset = data_smith
-        else:
-            self.dataset = load_local_dataset(dataset_path)
-
+        # Load our working dataset (gather.json list or HF split)
+        self.dataset = (
+            data_smith
+            if dataset_path == HF_DATASET
+            else json.loads(Path(dataset_path).read_text())
+        )
         logger.info(f"Loaded {len(self.dataset)} instances from {dataset_path}")
 
         # Filter out instances that already have problem statements in the HF baseline
@@ -181,7 +138,7 @@ class IssueGen:
             )
             return
 
-        if PASS_TO_FAIL not in self.dataset[0]:
+        if FAIL_TO_PASS not in self.dataset[0]:
             raise ValueError(
                 "Must be called with the result of swesmith.harness.gather, not the _all_patches.json file"
             )
@@ -262,7 +219,7 @@ class IssueGen:
         """
         test_funcs = []
         repos_to_remove = []
-        test_idxs = list(range(len(instance[PASS_TO_FAIL])))
+        test_idxs = list(range(len(instance[FAIL_TO_PASS])))
         random.shuffle(test_idxs)
         for test_idx in test_idxs:
             test_func = get_test_function(instance, test_idx)
