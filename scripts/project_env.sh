@@ -22,6 +22,7 @@ export HF_PTF_PS="exports/${REPO_KEY}.hf.final.jsonl"
 export HF_PTF_PS_PQ="exports/${REPO_KEY}.hf.final.parquet"
 export DATASET_JSON="logs/experiments/${REPO_KEY}.gather.json"
 export ISSUE_DIR="logs/issue_gen/MonkeyType"
+export EXPORT_DIR="exports"
 # optional helper to switch quickly
 set_repo() {
   export REPO="$1"

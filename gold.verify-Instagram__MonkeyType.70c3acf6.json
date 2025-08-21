@@ -1,0 +1,30 @@
+{
+    "total_instances": 1,
+    "submitted_instances": 10,
+    "completed_instances": 0,
+    "resolved_instances": 0,
+    "unresolved_instances": 0,
+    "empty_patch_instances": 0,
+    "error_instances": 1,
+    "completed_ids": [],
+    "incomplete_ids": [],
+    "empty_patch_ids": [],
+    "submitted_ids": [
+        "Instagram__MonkeyType.70c3acf6.class_basic__4y7enheu",
+        "Instagram__MonkeyType.70c3acf6.class_basic__75ewhhp5",
+        "Instagram__MonkeyType.70c3acf6.class_basic__ckdnslkc",
+        "Instagram__MonkeyType.70c3acf6.class_basic__fib4611b",
+        "Instagram__MonkeyType.70c3acf6.class_basic__izl4fp4t",
+        "Instagram__MonkeyType.70c3acf6.class_basic__jqpy4ar6",
+        "Instagram__MonkeyType.70c3acf6.class_basic__kdnihb0d",
+        "Instagram__MonkeyType.70c3acf6.class_basic__m48uu4ib",
+        "Instagram__MonkeyType.70c3acf6.class_basic__v452xtht",
+        "Instagram__MonkeyType.70c3acf6.class_basic__wmcf52sd"
+    ],
+    "resolved_ids": [],
+    "unresolved_ids": [],
+    "error_ids": [
+        "Instagram__MonkeyType.70c3acf6.class_basic__jqpy4ar6"
+    ],
+    "schema_version": 2
+}
